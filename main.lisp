@@ -9,7 +9,7 @@
  (fseek file 0 *seek-end*)
  ((length int) (ftell file))
  (fseek file 0 *seek-set*)
- ((buffer char*) (malloc (multiply (sizeof char) length)))
+ ((buffer char*) (new-memory (multiply (sizeof char) length) "read_file"))
  (fread buffer 1 length file)
  (fclose file)
  (return buffer))
