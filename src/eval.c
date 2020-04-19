@@ -83,11 +83,6 @@ void print_(struct Thing *env, struct Eva *eva)
     // raise(dope(new_string("whooops")), eva);
 }
 
-int listp(struct Thing *thing)
-{
-    return thing->type == &TYPES.cons || thing->type == &TYPES.nil;
-}
-
 void progn(struct Thing *env, struct Eva *eva)
 {
     if(env->type != &TYPES.cons)

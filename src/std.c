@@ -209,6 +209,66 @@ void equal(struct Thing *env, struct Eva *eva)
     update_args(new_cons(new_bool(thing_equal(first, second)), new_nil()), eva);
 }
 
+void lst_length(struct Thing *env, struct Eva *eva)
+{
+    if(eva->args->type != &TYPES.cons)
+    {
+        raise(new_string("length: not enough arguments"), eva);
+        return;
+    }
+    struct Cons *args_cons = eva->args->value;
+    struct Thing *lst = args_cons->car;
+    int length = 0;
+    while(lst->type == &TYPES.cons)
+    {
+        struct Cons *cons = lst->value;
+        lst = cons->cdr;
+        length++;
+    }
+    if(lst->type != &TYPES.nil)
+    {
+        raise(new_string("length: argument is no proper list"), eva);
+        return;
+    }
+    update_args(new_cons(new_integer(length), new_nil()), eva);
+}
+
+void typeof_(struct Thing *env, struct Eva *eva)
+{
+    if(eva->args->type != &TYPES.cons)
+    {
+        raise(new_string("typeof: not enough arguments"), eva);
+        return;
+    }
+    struct Cons *args_cons = eva->args->value;
+
+    update_args(new_cons(new_string(args_cons->car->type->name), new_nil()), eva);
+}
+
+void reverse(struct Thing *env, struct Eva *eva)
+{
+    if(eva->args->type != &TYPES.cons)
+    {
+        raise(new_string("reverse: not enough arguments"), eva);
+        return;
+    }
+    struct Cons *args_cons = eva->args->value;
+
+    update_args(new_cons(lst_reverse(args_cons->car), new_nil()), eva);
+}
+
+void listp_(struct Thing *env, struct Eva *eva)
+{
+    if(eva->args->type != &TYPES.cons)
+    {
+        raise(new_string("reverse: not enough arguments"), eva);
+        return;
+    }
+    struct Cons *args_cons = eva->args->value;
+
+    update_args(new_cons(new_bool(listp(args_cons->car)), new_nil()), eva);
+}
+
 struct Thing *simple_entry(const char *name, void (*fn)(struct Thing*, struct Eva*))
 {
     return new_cons(new_symbol(name), new_function(fn, new_nil()));
@@ -243,6 +303,10 @@ struct Thing *build_std_fn_env()
     env = push_std(simple_entry("car", car_), env);
     env = push_std(simple_entry("cdr", cdr_), env);
     env = push_std(simple_entry("equal?", equal), env);
+    env = push_std(simple_entry("length", lst_length), env);
+    env = push_std(simple_entry("typeof", typeof_), env);
+    env = push_std(simple_entry("reverse", reverse), env);
+    env = push_std(simple_entry("list?", listp_), env);
 
     return env;
 }

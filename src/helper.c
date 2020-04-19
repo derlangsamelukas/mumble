@@ -193,6 +193,30 @@ void a_integer_cc(struct ParseObject *parse_object)
     return_corresponding_function(parse_object);
 }
 
+void a_bool_cc(struct ParseObject *parse_object)
+{
+    if(parse_object->ch == 't')
+    {
+        push_lst(new_bool(1), parse_object);
+        parse_object->next = return_corresponding_function;
+    }
+    else if(parse_object->ch == 'f')
+    {
+        push_lst(new_bool(0), parse_object);
+        parse_object->next = return_corresponding_function;
+    }
+    else
+    {
+        printf("unexpected char, expected 't' or 'f' got: '%c'\n", parse_object->ch);
+        exit(1);
+    }
+}
+
+void a_bool(struct ParseObject *parse_object)
+{
+    parse_object->next = a_bool_cc;
+}
+
 void a_integer(struct ParseObject *parse_object)
 {
     parse_object->corresponding_value = parse_object->index;
@@ -265,6 +289,10 @@ void return_corresponding_function(struct ParseObject *parse_object)
     else if(parse_object->ch >= '0' && parse_object->ch <= '9')
     {
         a_integer(parse_object);
+    }
+    else if(parse_object->ch == '#')
+    {
+        a_bool(parse_object);
     }
     else if(parse_object->ch == ' ' || parse_object->ch == '\n' || parse_object->ch == '\t')
     {
@@ -569,7 +597,7 @@ struct Thing *lst_reverse(struct Thing *lst)
 {
     struct Thing *current = new_nil();
 
-    while(lst->type != &TYPES.nil)
+    while(lst->type == &TYPES.cons)
     {
         struct Cons *cons = (struct Cons*)lst->value;
         struct Thing *old = current;
@@ -579,4 +607,9 @@ struct Thing *lst_reverse(struct Thing *lst)
     }
 
     return current;
+}
+
+int listp(struct Thing *thing)
+{
+    return thing->type == &TYPES.cons || thing->type == &TYPES.nil;
 }

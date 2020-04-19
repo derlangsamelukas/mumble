@@ -1,5 +1,5 @@
 ((lambda (map)
-   (print (map (lambda (x) 'hu) (list "hej"))))
+   (print #f))
  ((lambda (map)
     (lambda (f lst)
       (map map f lst)))

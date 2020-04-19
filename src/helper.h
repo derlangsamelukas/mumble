@@ -62,6 +62,7 @@ char *string_builder_to_string_and_destroy(struct StringBuilder *builder);
 struct Thing *lst_reverse(struct Thing *lst);
 void parse_object_free(struct Thing *thing);
 void parse_object_mark(struct Thing *thing);
+int listp(struct Thing *thing);
 
 extern const struct Type parse_object_type;
 
