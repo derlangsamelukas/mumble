@@ -307,6 +307,14 @@ void expand_args(struct Thing *args, struct Thing *macros, struct Eva *eva)
                     push_next(further_expand, eva);
                     push_next(thunk, eva);
                 }
+                else
+                {
+                    expand_args(arg->cdr, macros, eva);
+                }
+            }
+            else
+            {
+                expand_args(arg->cdr, macros, eva);
             }
         }
 
@@ -448,6 +456,30 @@ void eval_function(struct Cons *cons, struct Thing *env, struct Eva *eva)
     /* eva->args = new_cons(new_function(execute_function, new_cons(cons->cdr, env)), new_nil()); */
 }
 
+/* void expando(struct Cons *funcall, struct Thing *env, struct Eva *eva) */
+/* { */
+/*     if(env->type != &TYPES.cons) */
+/*     { */
+/*         puts("expado: env is no cons") */
+/*         exit(1); */
+/*     } */
+/*     struct Cons *env_cons = (struct Cons*)env->value; */
+/*     struct Thing *macros = env_cons->car; */
+/*     if(funcall->car->type != &TYPES.symbol) */
+/*     { */
+/*         return; */
+/*     } */
+/*     struct Thing *value = assoc(funcall->car->value, macros); */
+/*     thing_track(macros, value); */
+/*     if(value->type != &TYPES.cons) */
+/*     { */
+/*         return; */
+/*     } */
+/*     struct Cons *value_cons = (struct Cons*)value->value; */
+/*     struct Thing *macro = value_cons->cdr; */
+
+/* } */
+
 void eval(struct Thing *env, struct Eva *eva)
 {
     struct Cons *cons = (struct Cons*)eva->args->value;
@@ -467,6 +499,7 @@ void eval(struct Thing *env, struct Eva *eva)
         }
         else
         {
+            // expando
             eval_funcall((struct Cons*)eval_me->value, env, eva);
         }
     }

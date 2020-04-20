@@ -62,11 +62,12 @@ int main(int argc, const char **argv)
 
     struct Thing *nil = new_nil();
     struct Thing *env = build_std_env();
-    struct Thing *execute_env = new_cons(new_cons(nil, parsed), env);
-    struct Thing *thunk = new_function(execute_function, execute_env);
+    struct Thing *thunk = new_function(eval, env);
+    struct Thing *args = new_cons(new_cons(new_cons(new_symbol("lambda"), new_cons(new_nil(), parsed)), nil), nil);
     pacman_track(pacman, thunk);
+    pacman_track(pacman, args);
 
-    eval_loop(thunk, nil, pacman);
+    eval_loop(thunk, args, pacman);
     
     pacman_destroy(pacman);
     printf("active references: %d\n", get_active_references());

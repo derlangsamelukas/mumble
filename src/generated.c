@@ -13,57 +13,13 @@ char* read_file (const char* filename)
   fseek(file, 0, SEEK_END);
   int length = ftell(file);
   fseek(file, 0, SEEK_SET);
-  char* buffer = new_memory(multiply(sizeof(char), length), "read_file");
+  char* buffer = new_memory(multiply(sizeof(char), length +1), "read_file");
   fread(buffer, 1, length, file);
+  buffer[length] = '\0';
   fclose(file);
 
   return buffer;
 }
-
-
-void* popuate_symbol ()
-{
-
-  return NULL;
-}
-
-
-void* popuate_string ()
-{
-
-  return NULL;
-}
-
-
-void* popuate_list ()
-{
-
-  return NULL;
-}
-
-
-void* popuate_number ()
-{
-
-  return NULL;
-}
-
-
-void* popuate_whitespaces ()
-{
-
-  return NULL;
-}
-
-
-struct Thing* read_lisp (const char* content)
-{
-  int x = 0;
-  x = 5;
-
-  return NULL;
-}
-
 
 int run ()
 {
