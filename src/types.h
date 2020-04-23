@@ -86,6 +86,7 @@ extern const struct Types TYPES;
 struct Thing *new_thing();
 void thing_mark(struct Thing *thing);
 void thing_track(struct Thing *thing, struct Thing *other);
+void simple_track(struct Thing *thing);
 void simple_free(struct Thing *thing, const char *purpose);
 void free_cons(struct Thing *thing);
 void free_nil(struct Thing *thing);

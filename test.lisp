@@ -1,7 +1,7 @@
 
-(print "huch")
+;; (print "huch")
 ((lambda (map)
-   (print (list '(1 2 3))))
+   (print (map list '(1 2 3))))
  ((lambda (map)
     (lambda (f lst)
       (map map f lst)))

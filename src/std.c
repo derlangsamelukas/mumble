@@ -322,7 +322,7 @@ struct Thing *build_std_macro_env()
 
 struct Thing *build_std_env()
 {
-    struct Thing *fn_env = build_std_fn_env();
+    struct Thing *fn_env = add_sdl_lib(build_std_fn_env());
     struct Thing *macro_env = build_std_macro_env();
 
     struct Thing *env = new_cons(macro_env, fn_env);

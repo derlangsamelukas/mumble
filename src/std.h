@@ -2,6 +2,7 @@
 #define STD_H
 
 #include "eval.h"
+#include "sdl_lib.h"
 
 void list(struct Thing *env, struct Eva *eva);
 struct Thing *simple_entry(const char *name, void (*fn)(struct Thing*, struct Eva*));

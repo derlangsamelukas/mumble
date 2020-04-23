@@ -1,0 +1,61 @@
+* A humble Lisp
+
+This project is an experiment to create a Lisp interpreter for initally (but not exclusively) the SDL(2) library that runs also under windows.
+THe main idea's and concepts are from the chicken scheme implementation.
+It will be more scheme than common lisp oriented.
+
+There are no arrays ore hashmaps, everything is done with cons'es.
+Nothing is optimized for performance, the first goal of this project is to get a sdl window under windows running which is written (and extensible) in lisp.
+
+** Current features 
+- mark & sweep garbage collection
+- no completely tested tail recursion
+- proper exception handling (but the corresponding bindings for lisp are currently missing)
+- macros (currently weird to use them)
+- lexical scoping
+- basic types
+  - cons
+  - nil
+  - string
+  - integer
+  - number (double)
+  - bool
+  - symbol
+  - function
+
+** Todo's
+- Test on windows
+- baisc macros (eg. quasiquote)
+- expose exception handling to lisp
+- change exit(1) to raise instead an exception
+- change macro usage
+- loading of other files
+- add build without SDL2
+
+** Building (linux)
+
+tested under Arch Linux: package needed: sdl2, sdl2_image, gcc
+
+#+BEGIN_SRC sh
+$ make
+#+END_SRC
+
+Creates a file ./a.out
+
+** Running
+
+#+BEGIN_SRC sh
+$ ./a.out <filename>
+#+END_SRC
+
+to show a basic window with a duck:
+
+#+BEGIN_SRC sh
+$ ./a.out sdl.lisp
+#+END_SRC
+
+to see the map function implemented with this lisp:
+
+#+BEGIN_SRC sh
+$ ./a.out test.lisp
+#+END_SRC
