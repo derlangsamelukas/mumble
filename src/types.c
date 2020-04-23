@@ -194,6 +194,8 @@ struct Thing *new_bool(int value)
     *bool = value != 0;
     thing->value = (void*)(bool);
     thing->type = &TYPES.bool;
+
+    return thing;
 }
 
 struct Thing *new_cons(struct Thing *car, struct Thing *cdr)

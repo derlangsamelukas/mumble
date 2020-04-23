@@ -29,7 +29,7 @@ int multiply(int a, int b)
 
 int a_symbolp(char ch)
 {
-    return (ch >= 'A' && ch <= 'z') || strchr("+-*/&?", ch) != NULL;
+    return ((ch >= 'A' && ch <= 'z') || strchr("+-*/&?", ch) != NULL) && ch != '`';
 }
 
 struct Thing *wrapper(const char *symbol, struct Thing *thing)
@@ -495,7 +495,7 @@ char *string_of_thing(struct Thing *thing)
     else
     {
         char *buffer = new_memory(sizeof(char) * 12 + 15 + 1 + strlen(thing->type->name), "string_of_thing: function");
-        sprintf(buffer, "<custom %s %p>", thing->type->name);
+        sprintf(buffer, "<custom %s %p>", thing->type->name, thing->value);
 
         return buffer;
         /* printf("string_of_thing: dunno, type is nr: %d\n", thing->type->id); */

@@ -258,7 +258,7 @@ void render_copy(struct Thing *env, struct Eva *eva)
     }
     if(fourth_arg->car->type != &TYPES.nil)
     {
-        fill_rect(&src_, fourth_arg->car);
+        fill_rect(&dest_, fourth_arg->car);
         dest = &dest_;
     }
     
