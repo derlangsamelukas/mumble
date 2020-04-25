@@ -1,5 +1,481 @@
 #include "std.h"
 
+void assoc_(struct Thing *env, struct Eva *eva)
+{
+    if(eva->args->type != &TYPES.cons)
+    {
+        raiseit(new_string("assoc: not enough arguments"), eva);
+        return;
+    }
+    struct Cons *cons = (struct Cons*)eva->args->value;
+    if(cons->cdr->type != &TYPES.cons)
+    {
+        raiseit(new_string("assoc: not enough arguments"), eva);
+        return;
+    }
+    struct Cons *second_arg = (struct Cons*)cons->cdr->value;
+    if(second_arg->cdr->type != &TYPES.nil)
+    {
+        raiseit(new_string("assoc: too many arguments"), eva);
+        return;
+    }
+    if(cons->car->type != &TYPES.symbol)
+    {
+        raiseit(new_string("assoc: second argument is no symbol"), eva);
+        return;
+    }
+
+    update_args(new_cons(assoc(cons->car->value, second_arg->car), new_nil()), eva);
+}
+
+void build_std_env_(struct Thing *env, struct Eva *eva)
+{
+    if(eva->args->type != &TYPES.nil)
+    {
+        raiseit(new_string("build_std_env_: too many arguments"), eva);
+        return;
+    }
+
+    update_args(new_cons(build_std_env(), new_nil()), eva);
+}
+
+void read_(struct Thing *env, struct Eva *eva)
+{
+    if(eva->args->type != &TYPES.cons)
+    {
+        raiseit(new_string("read_: not enough arguments"), eva);
+        return;
+    }
+    struct Cons *cons = (struct Cons*)eva->args->value;
+    if(cons->cdr->type != &TYPES.nil)
+    {
+        raiseit(new_string("read_: too many arguments"), eva);
+        return;
+    }
+    if(cons->car->type != &TYPES.string)
+    {
+        raiseit(new_string("read_: second argument is no string"), eva);
+        return;
+    }
+
+    struct Thing *parsed = parse(cons->car->value, eva->args->pacman);
+
+    update_args(new_cons(parsed, new_nil()), eva);
+}
+
+char* read_file (const char* filename);
+
+void read_file_as_string(struct Thing *env, struct Eva *eva)
+{
+    if(eva->args->type != &TYPES.cons)
+    {
+        raiseit(new_string("read_file_as_string: not enough arguments"), eva);
+        return;
+    }
+    struct Cons *cons = (struct Cons*)eva->args->value;
+    if(cons->cdr->type != &TYPES.nil)
+    {
+        raiseit(new_string("read_file_as_string: too many arguments"), eva);
+        return;
+    }
+    if(cons->car->type != &TYPES.string)
+    {
+        raiseit(new_string("read_file_as_string: second argument is no string"), eva);
+        return;
+    }
+
+    char *content = read_file(cons->car->value);
+    if(NULL == content)
+    {
+        update_args(new_cons(new_bool(0), new_nil()), eva);
+    }
+
+    update_args(new_cons(new_string_no_copy(content), new_nil()), eva);
+}
+
+void eval_expr(struct Thing *env, struct Eva *eva)
+{
+    if(eva->args->type != &TYPES.cons)
+    {
+        raiseit(new_string("eval: not enough arguments"), eva);
+        return;
+    }
+    struct Cons *cons = (struct Cons*)eva->args->value;
+    if(cons->cdr->type != &TYPES.cons)
+    {
+        raiseit(new_string("eval: not enough arguments"), eva);
+        return;
+    }
+    struct Cons *second_arg = (struct Cons*)cons->cdr->value;
+    if(second_arg->cdr->type != &TYPES.nil)
+    {
+        raiseit(new_string("eval: too many arguments"), eva);
+        return;
+    }
+    if(second_arg->car->type != &TYPES.cons) // env
+    {
+        raiseit(new_string("eval: second argument is no cons"), eva);
+        return;
+    }
+
+    push_next(new_function(eval, second_arg->car), eva);
+    update_args(new_cons(cons->car, new_nil()), eva);
+}
+
+/* void load(struct Thing *env, struct Eva *eva) */
+/* { */
+/*     if(eva->args->type != &TYPES.cons) */
+/*     { */
+/*         raiseit(new_string("load: not enough arguments"), eva); */
+/*         return; */
+/*     } */
+/*     struct Cons *cons = (struct Cons*)eva->args->value; */
+/*     if(cons->cdr->type != &TYPES.cons) */
+/*     { */
+/*         raiseit(new_string("load: not enough arguments"), eva); */
+/*         return; */
+/*     } */
+/*     struct Cons *second_arg = (struct Cons*)cons->cdr->value; */
+/*     if(second_arg->cdr->type != &TYPES.nil) */
+/*     { */
+/*         raiseit(new_string("load: too many arguments"), eva); */
+/*         return; */
+/*     } */
+/*     if(cons->car->type != &TYPES.string) */
+/*     { */
+/*         raiseit(new_string("load: first argument is no string"), eva); */
+/*         return; */
+/*     } */
+/*     if(!listp(second_arg->car)) */
+/*     { */
+/*         raiseit(new_string("load: second argument is no list"), eva); */
+/*         return; */
+/*     } */
+    
+/* } */
+
+void apply(struct Thing *env, struct Eva *eva)
+{
+    if(eva->args->type != &TYPES.cons)
+    {
+        raiseit(new_string("apply: not enough arguments"), eva);
+        return;
+    }
+    struct Cons *cons = (struct Cons*)eva->args->value;
+    if(cons->cdr->type != &TYPES.cons)
+    {
+        raiseit(new_string("apply: not enough arguments"), eva);
+        return;
+    }
+    struct Cons *second_arg = (struct Cons*)cons->cdr->value;
+    if(second_arg->cdr->type != &TYPES.nil)
+    {
+        raiseit(new_string("apply: too many arguments"), eva);
+        return;
+    }
+    if(cons->car->type != &TYPES.function)
+    {
+        raiseit(new_string("apply: first argument is no function"), eva);
+        return;
+    }
+    if(!listp(second_arg->car))
+    {
+        raiseit(new_string("apply: second argument is no list"), eva);
+        return;
+    }
+
+    push_next(cons->car, eva);
+    update_args(second_arg->car, eva);
+}
+
+void concat(struct Thing *env, struct Eva *eva)
+{
+    if(eva->args->type != &TYPES.cons)
+    {
+        raiseit(new_string("concat: not enough arguments"), eva);
+        return;
+    }
+    struct Cons *cons = (struct Cons*)eva->args->value;
+    if(cons->cdr->type != &TYPES.cons)
+    {
+        raiseit(new_string("concat: not enough arguments"), eva);
+        return;
+    }
+    struct Cons *second_arg = (struct Cons*)cons->cdr->value;
+    if(second_arg->cdr->type != &TYPES.nil)
+    {
+        raiseit(new_string("concat: too many arguments"), eva);
+        return;
+    }
+    if(cons->car->type != &TYPES.string)
+    {
+        raiseit(new_string("concat: first argument is no string"), eva);
+        return;
+    }
+    if(second_arg->car->type != &TYPES.string)
+    {
+        raiseit(new_string("concat: second argument is no string"), eva);
+        return;
+    }
+
+    struct StringBuilder *builder = new_string_builder(cons->car->value);
+    builder = string_builder_add_copy(builder, second_arg->car->value);
+
+    update_args(new_cons(new_string_no_copy(string_builder_to_string_and_destroy(builder)), new_nil()), eva);
+}
+
+void plus__(const char *name, int (plus_integer)(int, int), double (plus_number)(double, double), struct Thing *env, struct Eva *eva)
+{
+    if(eva->args->type != &TYPES.cons)
+    {
+        struct StringBuilder *builder = new_string_builder(name);
+        builder = string_builder_add_copy(builder, ": not enough arguments");
+        raiseit(new_string_no_copy(string_builder_to_string_and_destroy(builder)), eva);
+        return;
+    }
+    struct Cons *cons = (struct Cons*)eva->args->value;
+    if(cons->cdr->type != &TYPES.cons)
+    {
+        struct StringBuilder *builder = new_string_builder(name);
+        builder = string_builder_add_copy(builder, ": not enough arguments");
+        raiseit(new_string_no_copy(string_builder_to_string_and_destroy(builder)), eva);
+        return;
+    }
+    struct Cons *second_arg = (struct Cons*)cons->cdr->value;
+    if(second_arg->cdr->type != &TYPES.nil)
+    {
+        struct StringBuilder *builder = new_string_builder(name);
+        builder = string_builder_add_copy(builder, ": too many arguments");
+        raiseit(new_string_no_copy(string_builder_to_string_and_destroy(builder)), eva);
+        return;
+    }
+    if(cons->car->type != second_arg->car->type)
+    {
+        struct StringBuilder *builder = new_string_builder(name);
+        builder = string_builder_add_copy(builder, ": arguments don't have the same type");
+        raiseit(new_string_no_copy(string_builder_to_string_and_destroy(builder)), eva);
+        return;
+    }
+    if(cons->car->type == &TYPES.integer)
+    {
+        update_args(new_cons(new_integer(plus_integer(*((int*)cons->car->value), *((int*)second_arg->car->value))), new_nil()), eva);
+    }
+    else if(cons->car->type == &TYPES.number)
+    {
+        update_args(new_cons(new_number(plus_number(*((double*)cons->car->value), *((double*)second_arg->car->value))), new_nil()), eva);
+    }
+    else
+    {
+        struct StringBuilder *builder = new_string_builder(name);
+        builder = string_builder_add_copy(builder, ": arguments are neither integer or number");
+        raiseit(new_string_no_copy(string_builder_to_string_and_destroy(builder)), eva);
+    }
+}
+
+int    plus_integer  (int    a, int    b) { return a + b; }
+double plus_double   (double a, double b) { return a + b; }
+int    minus_integer (int    a, int    b) { return a - b; }
+double minus_double  (double a, double b) { return a - b; }
+int    mult_integer  (int    a, int    b) { return a * b; }
+double mult_double   (double a, double b) { return a * b; }
+int    divide_integer(int    a, int    b) { return a / b; }
+double divide_double (double a, double b) { return a / b; }
+
+void plus(struct Thing *env, struct Eva *eva)
+{
+    plus__("+", plus_integer, plus_double, env, eva);
+}
+
+void minus(struct Thing *env, struct Eva *eva)
+{
+    plus__("-", minus_integer, minus_double, env, eva);
+}
+
+void mult(struct Thing *env, struct Eva *eva)
+{
+    plus__("*", mult_integer, mult_double, env, eva);
+}
+
+void divide(struct Thing *env, struct Eva *eva)
+{
+    plus__("/", divide_integer, divide_double, env, eva);
+}
+
+
+void string_to_symbol(struct Thing *env, struct Eva *eva)
+{
+    if(eva->args->type != &TYPES.cons)
+    {
+        raiseit(new_string("string->symbol: not enough arguments"), eva);
+        return;
+    }
+    struct Cons *cons = (struct Cons*)eva->args->value;
+    if(cons->cdr->type != &TYPES.nil)
+    {
+        raiseit(new_string("string->symbol: too many arguments"), eva);
+        return;
+    }
+
+    if(cons->car->type != &TYPES.string)
+    {
+        raiseit(new_string("string->symbol: first argument is no string"), eva);
+        return;
+    }
+
+    update_args(new_cons(new_symbol(cons->car->value), new_nil()), eva);
+}
+
+void symbol_to_string(struct Thing *env, struct Eva *eva)
+{
+    if(eva->args->type != &TYPES.cons)
+    {
+        raiseit(new_string("symbol->string: not enough arguments"), eva);
+        return;
+    }
+    struct Cons *cons = (struct Cons*)eva->args->value;
+    if(cons->cdr->type != &TYPES.nil)
+    {
+        raiseit(new_string("symbol->string: too many arguments"), eva);
+        return;
+    }
+
+    if(cons->car->type != &TYPES.symbol)
+    {
+        raiseit(new_string("symbol->string: first argument is no symbol"), eva);
+        return;
+    }
+
+    update_args(new_cons(new_string(cons->car->value), new_nil()), eva);
+}
+
+void functionp(struct Thing *env, struct Eva *eva)
+{
+    if(eva->args->type != &TYPES.cons)
+    {
+        raiseit(new_string("functionp: not enough arguments"), eva);
+        return;
+    }
+    struct Cons *cons = (struct Cons*)eva->args->value;
+    if(cons->cdr->type != &TYPES.nil)
+    {
+        raiseit(new_string("functionp: too many arguments"), eva);
+        return;
+    }
+    update_args(new_cons(new_bool(cons->car->type == &TYPES.function), new_nil()), eva);
+}
+
+void integerp(struct Thing *env, struct Eva *eva)
+{
+    if(eva->args->type != &TYPES.cons)
+    {
+        raiseit(new_string("integerp: not enough arguments"), eva);
+        return;
+    }
+    struct Cons *cons = (struct Cons*)eva->args->value;
+    if(cons->cdr->type != &TYPES.nil)
+    {
+        raiseit(new_string("integerp: too many arguments"), eva);
+        return;
+    }
+    update_args(new_cons(new_bool(cons->car->type == &TYPES.integer), new_nil()), eva);
+}
+
+void numberp(struct Thing *env, struct Eva *eva)
+{
+    if(eva->args->type != &TYPES.cons)
+    {
+        raiseit(new_string("numberp: not enough arguments"), eva);
+        return;
+    }
+    struct Cons *cons = (struct Cons*)eva->args->value;
+    if(cons->cdr->type != &TYPES.nil)
+    {
+        raiseit(new_string("numberp: too many arguments"), eva);
+        return;
+    }
+    update_args(new_cons(new_bool(cons->car->type == &TYPES.number), new_nil()), eva);
+}
+
+void pairp(struct Thing *env, struct Eva *eva)
+{
+    if(eva->args->type != &TYPES.cons)
+    {
+        raiseit(new_string("pairp: not enough arguments"), eva);
+        return;
+    }
+    struct Cons *cons = (struct Cons*)eva->args->value;
+    if(cons->cdr->type != &TYPES.nil)
+    {
+        raiseit(new_string("pairp: too many arguments"), eva);
+        return;
+    }
+    update_args(new_cons(new_bool(cons->car->type == &TYPES.cons), new_nil()), eva);
+}
+
+void stringp(struct Thing *env, struct Eva *eva)
+{
+    if(eva->args->type != &TYPES.cons)
+    {
+        raiseit(new_string("stringp: not enough arguments"), eva);
+        return;
+    }
+    struct Cons *cons = (struct Cons*)eva->args->value;
+    if(cons->cdr->type != &TYPES.nil)
+    {
+        raiseit(new_string("stringp: too many arguments"), eva);
+        return;
+    }
+    update_args(new_cons(new_bool(cons->car->type == &TYPES.string), new_nil()), eva);
+}
+
+void symbolp(struct Thing *env, struct Eva *eva)
+{
+    if(eva->args->type != &TYPES.cons)
+    {
+        raiseit(new_string("symbolp: not enough arguments"), eva);
+        return;
+    }
+    struct Cons *cons = (struct Cons*)eva->args->value;
+    if(cons->cdr->type != &TYPES.nil)
+    {
+        raiseit(new_string("symbolp: too many arguments"), eva);
+        return;
+    }
+    update_args(new_cons(new_bool(cons->car->type == &TYPES.symbol), new_nil()), eva);
+}
+
+void boolp(struct Thing *env, struct Eva *eva)
+{
+    if(eva->args->type != &TYPES.cons)
+    {
+        raiseit(new_string("boolp: not enough arguments"), eva);
+        return;
+    }
+    struct Cons *cons = (struct Cons*)eva->args->value;
+    if(cons->cdr->type != &TYPES.nil)
+    {
+        raiseit(new_string("boolp: too many arguments"), eva);
+        return;
+    }
+    update_args(new_cons(new_bool(cons->car->type == &TYPES.bool), new_nil()), eva);
+}
+
+void identity(struct Thing *env, struct Eva *eva)
+{
+    if(eva->args->type != &TYPES.cons)
+    {
+        raiseit(new_string("identity: not enough arguments"), eva);
+        return;
+    }
+    struct Cons *cons = (struct Cons*)eva->args->value;
+    if(cons->cdr->type != &TYPES.nil)
+    {
+        raiseit(new_string("identity: too arguments"), eva);
+        return;
+    }
+    update_args(new_cons(cons->car, new_nil()), eva);
+}
+
 void list(struct Thing *env, struct Eva *eva)
 {
     update_args(new_cons(eva->args, new_nil()), eva);
@@ -115,13 +591,13 @@ void car_(struct Thing *env, struct Eva *eva)
 {
     if(eva->args->type != &TYPES.cons)
     {
-        raise(new_string("car: args are no cons"), eva);
+        raiseit(new_string("car: args are no cons"), eva);
         return;
     }
     struct Cons *cons = eva->args->value;
     if(cons->car->type != &TYPES.cons)
     {
-        raise(new_string("car: argument is no cons"), eva);
+        raiseit(new_string("car: argument is no cons"), eva);
         return;
     }
     struct Cons *car_cons = cons->car->value;
@@ -132,13 +608,13 @@ void cdr_(struct Thing *env, struct Eva *eva)
 {
     if(eva->args->type != &TYPES.cons)
     {
-        raise(new_string("cdr: args are no cons"), eva);
+        raiseit(new_string("cdr: args are no cons"), eva);
         return;
     }
     struct Cons *cons = eva->args->value;
     if(cons->car->type != &TYPES.cons)
     {
-        raise(new_string("cdr: argument is no cons"), eva);
+        raiseit(new_string("cdr: argument is no cons"), eva);
         return;
     }
     struct Cons *car_cons = cons->car->value;
@@ -188,19 +664,19 @@ void equal(struct Thing *env, struct Eva *eva)
 {
     if(eva->args->type != &TYPES.cons)
     {
-        raise(new_string("equal?: not enough arguments"), eva);
+        raiseit(new_string("equal?: not enough arguments"), eva);
         return;
     }
     struct Cons *args_cons = eva->args->value;
     if(args_cons->cdr->type != &TYPES.cons)
     {
-        raise(new_string("equal?: not enough arguments"), eva);
+        raiseit(new_string("equal?: not enough arguments"), eva);
         return;
     }
     struct Cons *second_args = args_cons->cdr->value;
     if(second_args->cdr->type != &TYPES.nil)
     {
-        raise(new_string("equal?: too many arguments"), eva);
+        raiseit(new_string("equal?: too many arguments"), eva);
         return;
     }
     struct Thing *first = args_cons->car;
@@ -213,7 +689,7 @@ void lst_length(struct Thing *env, struct Eva *eva)
 {
     if(eva->args->type != &TYPES.cons)
     {
-        raise(new_string("length: not enough arguments"), eva);
+        raiseit(new_string("length: not enough arguments"), eva);
         return;
     }
     struct Cons *args_cons = eva->args->value;
@@ -227,7 +703,7 @@ void lst_length(struct Thing *env, struct Eva *eva)
     }
     if(lst->type != &TYPES.nil)
     {
-        raise(new_string("length: argument is no proper list"), eva);
+        raiseit(new_string("length: argument is no proper list"), eva);
         return;
     }
     update_args(new_cons(new_integer(length), new_nil()), eva);
@@ -237,7 +713,7 @@ void typeof_(struct Thing *env, struct Eva *eva)
 {
     if(eva->args->type != &TYPES.cons)
     {
-        raise(new_string("typeof: not enough arguments"), eva);
+        raiseit(new_string("typeof: not enough arguments"), eva);
         return;
     }
     struct Cons *args_cons = eva->args->value;
@@ -249,7 +725,7 @@ void reverse(struct Thing *env, struct Eva *eva)
 {
     if(eva->args->type != &TYPES.cons)
     {
-        raise(new_string("reverse: not enough arguments"), eva);
+        raiseit(new_string("reverse: not enough arguments"), eva);
         return;
     }
     struct Cons *args_cons = eva->args->value;
@@ -261,7 +737,7 @@ void listp_(struct Thing *env, struct Eva *eva)
 {
     if(eva->args->type != &TYPES.cons)
     {
-        raise(new_string("reverse: not enough arguments"), eva);
+        raiseit(new_string("reverse: not enough arguments"), eva);
         return;
     }
     struct Cons *args_cons = eva->args->value;
@@ -307,6 +783,28 @@ struct Thing *build_std_fn_env()
     env = push_std(simple_entry("typeof", typeof_), env);
     env = push_std(simple_entry("reverse", reverse), env);
     env = push_std(simple_entry("list?", listp_), env);
+    env = push_std(simple_entry("function?", functionp), env);
+    env = push_std(simple_entry("integer?", integerp), env);
+    env = push_std(simple_entry("number?", numberp), env);
+    env = push_std(simple_entry("bool?", boolp), env);
+    env = push_std(simple_entry("string?", stringp), env);
+    env = push_std(simple_entry("symbol?", symbolp), env);
+    env = push_std(simple_entry("pair?", pairp), env);
+    env = push_std(simple_entry("identity", identity), env);
+    env = push_std(simple_entry("symbol->string", symbol_to_string), env);
+    env = push_std(simple_entry("string->symbol", string_to_symbol), env);
+    env = push_std(simple_entry("identity", identity), env);
+    env = push_std(simple_entry("+", plus), env);
+    env = push_std(simple_entry("-", minus), env);
+    env = push_std(simple_entry("*", mult), env);
+    env = push_std(simple_entry("/", divide), env);
+    env = push_std(simple_entry("concat", concat), env);
+    env = push_std(simple_entry("apply", apply), env);
+    env = push_std(simple_entry("eval", eval_expr), env);
+    env = push_std(simple_entry("read-file-as-string", read_file_as_string), env);
+    env = push_std(simple_entry("read", read_), env);
+    env = push_std(simple_entry("build-std-env", build_std_env_), env);
+    env = push_std(simple_entry("assoc", assoc_), env);
 
     return env;
 }

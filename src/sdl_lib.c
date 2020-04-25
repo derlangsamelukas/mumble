@@ -24,6 +24,11 @@ struct Type sdl_renderer_type = {"SDL_Renderer", 78977, free_nil, simple_mark, s
 struct Type sdl_event_type = {"SDL_Event", 78978, free_event, simple_mark, simple_track};
 struct Type sdl_texture_type = {"SDL_Texture", 78979, free_texture, simple_mark, simple_track};
 
+void sdl_windowp(struct Thing *env, struct Eva *eva) {}
+void sdl_eventp(struct Thing *env, struct Eva *eva) {}
+void sdl_rendererp(struct Thing *env, struct Eva *eva) {}
+void sdl_texturep(struct Thing *env, struct Eva *eva) {}
+
 void sdl_init_(struct Thing *env, struct Eva *eva)
 {
     if(eva->args->type != &TYPES.nil)

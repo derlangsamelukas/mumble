@@ -14,7 +14,7 @@
                (lambda (_) #f)
                (lambda (_)
                  (sdl-renderer-clear blender)
-                 (sdl-renderer-copy blender duck '() '())
+                 (sdl-renderer-copy blender duck '() '(0 0 50 50))
                  (sdl-renderer-present blender)
                  (loop loop)))
               (sdl-event-get-type eve)))))

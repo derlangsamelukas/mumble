@@ -7,7 +7,7 @@ void push_next(struct Thing *next, struct Eva *eva)
     thing_track(old, eva->next);
 }
 
-void raise(struct Thing *message, struct Eva *eva)
+void raiseit(struct Thing *message, struct Eva *eva)
 {
     struct Thing *cc_stack = eva->next;
     eva->next = new_nil();
@@ -165,12 +165,7 @@ void execute_function(struct Thing *env, struct Eva *eva)
     struct Cons *pair = (struct Cons*)cons->car->value;
     struct Thing *parameter_list = pair->car;
     struct Thing *body = pair->cdr;
-    if(!listp(parameter_list))
-    {
-        puts("incorrect lambda definition (parameter list is no list)");
-        exit(1);
-    }
-    else if(!listp(body))
+    if(!listp(body))
     {
         puts("incorrect lambda definition (body is no list)");
         exit(1);
@@ -178,31 +173,46 @@ void execute_function(struct Thing *env, struct Eva *eva)
 
     struct Thing *args = eva->args;
 
-    while(parameter_list->type == &TYPES.cons)
+    if(listp(parameter_list))
     {
-        struct Cons *parameter_list_cons = (struct Cons*)parameter_list->value;
-        if(args->type != &TYPES.cons)
+        while(parameter_list->type == &TYPES.cons)
         {
-            puts("not enough arguments for function (no cons)");
-            exit(1);
-        }
-        else if(parameter_list_cons->car->type != &TYPES.symbol)
-        {
-            puts("paramater in paramater list is no symbol");
-            exit(1);
-        }
-        struct Cons *args_cons = (struct Cons*)args->value;
-        struct Thing *symbol = parameter_list_cons->car;
-        struct Thing *argument_pair = new_cons(symbol, args_cons->car);
-        function_env_fns = new_cons(argument_pair, function_env_fns);
+            struct Cons *parameter_list_cons = (struct Cons*)parameter_list->value;
+            if(args->type != &TYPES.cons)
+            {
+                puts("not enough arguments for function (no cons)");
+                exit(1);
+            }
+            else if(parameter_list_cons->car->type != &TYPES.symbol)
+            {
+                puts("paramater in paramater list is no symbol");
+                exit(1);
+            }
+            struct Cons *args_cons = (struct Cons*)args->value;
+            struct Thing *symbol = parameter_list_cons->car;
+            struct Thing *argument_pair = new_cons(symbol, args_cons->car);
+            function_env_fns = new_cons(argument_pair, function_env_fns);
 
-        parameter_list = parameter_list_cons->cdr;
-        args = args_cons->cdr;
+            parameter_list = parameter_list_cons->cdr;
+            args = args_cons->cdr;
+        }
+        thing_track(function_env_cons->cdr, function_env_fns);
+        if(args->type == &TYPES.cons)
+        {
+            puts("to many arguments for function");
+            exit(1);
+        }
     }
-    thing_track(function_env_cons->cdr, function_env_fns);
-    if(args->type == &TYPES.cons)
+    else if(parameter_list->type == &TYPES.symbol)
     {
-        puts("to many arguments for function");
+        struct Thing *symbol = parameter_list;
+        struct Thing *argument_pair = new_cons(symbol, args);
+        function_env_fns = new_cons(argument_pair, function_env_fns);
+        thing_track(function_env_cons->cdr, function_env_fns);
+    }
+    else
+    {
+        puts("incorrect lambda definition (parameter list is no list)");
         exit(1);
     }
 
@@ -487,7 +497,15 @@ void eval(struct Thing *env, struct Eva *eva)
 
     if(eval_me->type == &TYPES.symbol)
     {
-        update_args(new_cons(resolve_symbol((char*)eval_me->value, env), new_nil()), eva);
+        struct Thing *val = assoc((char*)eval_me->value, env);
+        thing_track(eval_me, val);
+        if(val->type != &TYPES.cons)
+        {
+            printf("undefined symbol: %s\n", (char*)eval_me->value);
+            exit(1);
+        }
+        struct Cons *val_cons = val->value;
+        update_args(new_cons(val_cons->cdr, new_nil()), eva);
         // decrement_reference_counter(eva->args);
         // eva->args = new_cons(resolve_symbol((char*)eval_me->value, env), new_nil()); // @todo throw error when symbol does not exist
     }

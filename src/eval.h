@@ -4,7 +4,7 @@
 #include "types.h"
 #include "helper.h"
 
-void raise(struct Thing *message, struct Eva *eva);
+void raiseit(struct Thing *message, struct Eva *eva);
 void push_next(struct Thing *next, struct Eva *eva);
 void update_args(struct Thing *args, struct Eva *eva);
 struct Thing *assoc(const char *symbol, struct Thing *thing);

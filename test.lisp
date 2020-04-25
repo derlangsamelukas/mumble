@@ -15,14 +15,15 @@
    ((lambda ()
       (add-macro
        'let
-       (lambda (defs expr)
-         (cons (list 'lambda (map car defs) expr)
-               (map (lambda (def) (car (cdr def))) defs))))
+       (lambda args
+         (cons (cons 'lambda (cons (map car (car args)) (cdr args)))
+               (map (lambda (def) (car (cdr def))) (car args)))))
       (print `(() "huhu" ,(list `(1 ,(cons 22 33) 4) 2)))
       ((lambda ()
          (let ((name "lukas")
                (age 23))
-           (print age)))))))
+           (print age)
+           (print name)))))))
  ((lambda (map)
     (lambda (f lst)
       (map map f lst)))
