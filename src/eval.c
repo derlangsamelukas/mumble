@@ -392,6 +392,8 @@ void macro_expand(struct Thing *env, struct Eva *eva)
                 {
                     struct Cons *macro_cons = (struct Cons*)macro->value;
                     struct Thing *thunk = new_function(macro_expand_helper, new_cons(macro_cons->cdr, current));
+                    struct Thing *further_expand = new_function(expand_further, new_cons(body, macros));
+                    push_next(further_expand, eva);
                     push_next(thunk, eva);
                 }
                 else

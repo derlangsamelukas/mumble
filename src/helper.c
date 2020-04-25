@@ -29,7 +29,7 @@ int multiply(int a, int b)
 
 int a_symbolp(char ch)
 {
-    return ((ch >= 'A' && ch <= 'z') || strchr("+-*/&?", ch) != NULL) && ch != '`';
+    return ((ch >= 'A' && ch <= 'z') || strchr("+-*/&?<>", ch) != NULL) && ch != '`';
 }
 
 struct Thing *wrapper(const char *symbol, struct Thing *thing)

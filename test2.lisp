@@ -2,7 +2,6 @@
    ((lambda (std-env)
       ((lambda (tier-one)
          ((lambda (append map)
-            (print ((cdr (assoc 'quasiquote (car tier-one))) (list "aa")))
             (print
              (eval-file
               "test3.lisp"
