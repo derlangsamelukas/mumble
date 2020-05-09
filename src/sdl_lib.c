@@ -271,6 +271,22 @@ void render_copy(struct Thing *env, struct Eva *eva)
     update_args(new_cons(new_bool(0), new_nil()), eva);
 }
 
+void event_keysm(struct Thing *env, struct Eva *eva)
+{
+    ARG("event_keysym", eva->args);
+    struct Cons *args = eva->args->value;
+    ARG_END("event_keysym", args->cdr);
+    CUSTOM_TYPE("event_keysym", args->car, sdl_event_type);
+
+    SDL_Event *eve = args->car->value;
+    if(eve->type != SDL_KEYUP || eve->type != SDL_KEYDOWN)
+    {
+        update_args(new_cons(new_bool(0), new_nil()), eva);
+        return;
+    }
+    update_args(new_cons(new_integer(eve->key.keysym.sym), new_nil()), eva);
+}
+
 struct Thing *add_sdl_lib(struct Thing *fn_env)
 {
     struct Thing *env = new_cons(new_cons(new_symbol("sdl-init"), new_function(sdl_init_, new_nil())), fn_env);
@@ -287,6 +303,7 @@ struct Thing *add_sdl_lib(struct Thing *fn_env)
     env = new_cons(new_cons(new_symbol("sdl-renderer-copy"), new_function(render_copy, new_nil())), env);
     env = new_cons(new_cons(new_symbol("sdl-load-texture"), new_function(load_texture, new_nil())), env);
     env = new_cons(new_cons(new_symbol("sdl-img-init"), new_function(sdl_image_init, new_nil())), env);
+    env = new_cons(new_cons(new_symbol("sdl-keysym"), new_function(event_keysm, new_nil())), env);
 
     return env;
 }

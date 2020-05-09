@@ -10,12 +10,12 @@
             (map (lambda (def) (car (cdr def))) (car args))))
     (lambda (x)
       ((if*
-         (lambda (x) (equal? "cons" (typeof x)))
-         (if*
-          (lambda (lst) (equal? 'unquote (car lst)))
-          (lambda (lst) (car (cdr lst)))
-          (lambda (lst) (cons 'list (cons (list 'quasiquote (car lst)) (map (lambda (x) (list 'quasiquote x)) (cdr lst))))))
-         (lambda (x) (list 'quote x)))
+        pair?
+        (if*
+         (lambda (lst) (equal? 'unquote (car lst)))
+         (lambda (lst) (car (cdr lst)))
+         (lambda (lst) (cons 'list (cons (list 'quasiquote (car lst)) (map (lambda (x) (list 'quasiquote x)) (cdr lst))))))
+        (lambda (x) (list 'quote x)))
        x))
     (build-std-env)))
  ((lambda (map)

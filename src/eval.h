@@ -14,5 +14,7 @@ void eval_funcall(struct Cons *funcall, struct Thing *env, struct Eva *eva);
 void print_(struct Thing *env, struct Eva *eva);
 void execute_function(struct Thing *env, struct Eva *eva);
 void eval_loop(struct Thing *thunk, struct Thing *args, struct Pacman *pacman);
+void macro_expand(struct Thing *env, struct Eva *eva);
+void execute_body(struct Thing *env, struct Eva *eva);
 
 #endif

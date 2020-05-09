@@ -141,7 +141,7 @@ void add_macro(struct Thing *env, struct Eva *eva)
     update_args(new_nil(), eva);
 }
 
-void execute_function(struct Thing *env, struct Eva *eva)
+void execute_function_or_macros(struct Thing *env, struct Eva *eva, struct Thing *(get)(struct Cons*), struct Thing *(build)(struct Cons*, struct Thing*))
 {
     if(env->type != &TYPES.cons)
     {
@@ -161,7 +161,7 @@ void execute_function(struct Thing *env, struct Eva *eva)
         exit(1);
     }
     struct Cons *function_env_cons = (struct Cons*)cons->cdr->value;
-    struct Thing *function_env_fns = function_env_cons->cdr;
+    struct Thing *function_env_fns = get(function_env_cons);
     struct Cons *pair = (struct Cons*)cons->car->value;
     struct Thing *parameter_list = pair->car;
     struct Thing *body = pair->cdr;
@@ -216,26 +216,64 @@ void execute_function(struct Thing *env, struct Eva *eva)
         exit(1);
     }
 
-    struct Thing *current = body;
+    struct Thing *new_function_env = build(function_env_cons, function_env_fns);//  new_cons(function_env_cons->car, function_env_fns);
+    thing_track(body, new_function_env);
 
-    struct Thing *new_function_env = new_cons(function_env_cons->car, function_env_fns);
-    struct Cons *new_function_env_cons = (struct Cons*)new_function_env->value;
-    struct Thing *add_macro_fn = new_function(add_macro, new_function_env); // circular reference
-    new_function_env_cons->cdr = new_cons(new_cons(new_symbol("add-macro"), add_macro_fn), function_env_fns);
-    thing_track(body, new_function_env_cons->cdr);
-    // add_macro_fn->on_decrement = destroy_on_1;
+    struct Thing *def_and_env = new_cons(cons->car, new_function_env);
+    push_next(new_function(execute_body, new_cons(body, new_function_env)), eva);
+    push_next(new_function(macro_expand, def_and_env), eva);
 
+    update_args(new_nil(), eva);
+}
+
+void execute_body(struct Thing *env, struct Eva *eva)
+{
+    if(env->type != &TYPES.cons)
+    {
+        puts("execute_body: env is no cons");
+        exit(1);
+    }
+    struct Cons *env_cons = env->value;
+    struct Thing *current = env_cons->car;
+    struct Thing *new_function_env = env_cons->cdr;
     while(current->type == &TYPES.cons)
     {
         struct Cons *expr = (struct Cons*)current->value;
         struct Thing *thunk = new_function(progn, new_cons(expr->car, new_function_env));
         push_next(thunk, eva);
-        // eva->next = new_cons(thunk, eva->next);
         current = expr->cdr;
     }
     update_args(new_nil(), eva);
-    /* decrement_reference_counter(eva->args); */
-    /* eva->args = new_nil(); */
+}
+
+struct Thing *execute_function_build_function_cons(struct Cons *env, struct Thing *fns)
+{
+    return new_cons(env->car, fns);
+}
+
+struct Thing *execute_function_get_function_cons(struct Cons *env)
+{
+    return env->cdr;
+}
+
+struct Thing *execute_function_build_macro_cons(struct Cons *env, struct Thing *macros)
+{
+    return new_cons(macros, env->cdr);
+}
+
+struct Thing *execute_function_get_macro_cons(struct Cons *env)
+{
+    return env->car;
+}
+
+void execute_function(struct Thing *env, struct Eva *eva)
+{
+    execute_function_or_macros(env, eva, execute_function_get_function_cons, execute_function_build_function_cons);
+}
+
+void execute_macros(struct Thing *env, struct Eva *eva)
+{
+    execute_function_or_macros(env, eva, execute_function_get_macro_cons, execute_function_build_macro_cons);
 }
 
 void macro_expander_update_expr(struct Thing *env, struct Eva *eva)
@@ -285,12 +323,12 @@ void macro_expand_helper(struct Thing *env, struct Eva *eva)
         exit(1);
     }
     struct Cons *expr_cons2 = (struct Cons*)expr_cons->car->value;
-    if(expr_cons2->cdr->type != &TYPES.cons)
+    if(!listp(expr_cons2->cdr))
     {
-        puts("macro_expand_helper: cdar(expr) is no cons");
+        puts("macro_expand_helper: cdar(expr) is no list");
         exit(1);
     }
-    
+
     push_next(new_function(macro_expander_update_expr, expr), eva);
     push_next(macro, eva);
     update_args(expr_cons2->cdr, eva);
@@ -424,73 +462,41 @@ void eval_function_helper(struct Thing *env, struct Eva *eva)
     update_args(new_cons(new_function(execute_function, new_cons(parameter_list_and_body, function_env)), new_nil()), eva);
 }
 
-void eval_function(struct Cons *cons, struct Thing *env, struct Eva *eva)
+void eval_macros_helper(struct Thing *env, struct Eva *eva)
+{
+    if(env->type != &TYPES.cons)
+    {
+        puts("eval_macros_helper: env is no cons");
+        exit(1);
+    }
+    struct Cons *env_cons = (struct Cons*)env->value;
+    struct Thing *parameter_list_and_body = env_cons->car;
+    struct Thing *function_env = env_cons->cdr;
+
+    update_args(new_cons(new_function(execute_macros, new_cons(parameter_list_and_body, function_env)), new_nil()), eva);
+}
+
+void eval_function(struct Cons *cons, struct Thing *env, struct Eva *eva, void (*cc)(struct Thing*, struct Eva*))
 {
     if(cons->cdr->type != &TYPES.cons)
     {
-        puts("incorrect lambda definition (no parameter list & body)");
+        puts("incorrect lambda / macros definition (no parameter list & body)");
         exit(1);
     }
     struct Cons *parameter_list_and_body = (struct Cons*)cons->cdr->value;
     if(!listp(parameter_list_and_body->cdr))
     {
-        puts("invalid lambda definition: body is no list");
+        puts("invalid lambda / macros definition: body is no list");
         exit(1);
     }
     struct Thing *reversed_body = lst_reverse(parameter_list_and_body->cdr);
     struct Thing *def = new_cons(parameter_list_and_body->car, reversed_body);
     struct Thing *def_and_env = new_cons(def, env);
-    push_next(new_function(eval_function_helper, def_and_env), eva);
-    push_next(new_function(macro_expand, def_and_env), eva);
+    push_next(new_function(cc, def_and_env), eva);
+    // push_next(new_function(macro_expand, def_and_env), eva);
     
     update_args(new_nil(), eva);
-
-    
-    // expand macros here (cons->cdr->cdr := body)
-    /* struct Thing *nil = new_nil(); */
-    /* struct Thing *thunk_env = new_cons(cons->cdr, env); */
-    /* struct Thing *thunk = new_function(execute_function, thunk_env); */
-    /* struct Thing *args = new_cons(thunk, nil); */
-    // update_args(args, eva);
-
-    
-    // puts(string_of_thing(cons->cdr));
-    // update_args(dope(new_cons(dope(new_function(execute_function, dope(new_cons(cons->cdr, env)))), dope(new_nil()))), eva);
-
-
-    
-    /* decrement_reference_counter(args); */
-    /* decrement_reference_counter(thunk); */
-    /* decrement_reference_counter(thunk_env); */
-    /* decrement_reference_counter(nil); */
-    
-    /* decrement_reference_counter(eva->args); */
-    /* eva->args = new_cons(new_function(execute_function, new_cons(cons->cdr, env)), new_nil()); */
 }
-
-/* void expando(struct Cons *funcall, struct Thing *env, struct Eva *eva) */
-/* { */
-/*     if(env->type != &TYPES.cons) */
-/*     { */
-/*         puts("expado: env is no cons") */
-/*         exit(1); */
-/*     } */
-/*     struct Cons *env_cons = (struct Cons*)env->value; */
-/*     struct Thing *macros = env_cons->car; */
-/*     if(funcall->car->type != &TYPES.symbol) */
-/*     { */
-/*         return; */
-/*     } */
-/*     struct Thing *value = assoc(funcall->car->value, macros); */
-/*     thing_track(macros, value); */
-/*     if(value->type != &TYPES.cons) */
-/*     { */
-/*         return; */
-/*     } */
-/*     struct Cons *value_cons = (struct Cons*)value->value; */
-/*     struct Thing *macro = value_cons->cdr; */
-
-/* } */
 
 void eval(struct Thing *env, struct Eva *eva)
 {
@@ -513,13 +519,23 @@ void eval(struct Thing *env, struct Eva *eva)
     }
     else if(eval_me->type == &TYPES.cons)
     {
-        if(((struct Cons*)eval_me->value)->car->type == &TYPES.symbol && 0 == strcmp((char*)((struct Cons*)eval_me->value)->car->value, "lambda"))
+        if(((struct Cons*)eval_me->value)->car->type == &TYPES.symbol)
         {
-            eval_function((struct Cons*)eval_me->value, env, eva);
+            if(0 == strcmp("lambda", (char*)((struct Cons*)eval_me->value)->car->value))
+            {
+                eval_function((struct Cons*)eval_me->value, env, eva, eval_function_helper);
+            }
+            else if(0 == strcmp("macros", (char*)((struct Cons*)eval_me->value)->car->value))
+            {
+                eval_function((struct Cons*)eval_me->value, env, eva, eval_macros_helper);
+            }
+            else
+            {
+                eval_funcall((struct Cons*)eval_me->value, env, eva);
+            }
         }
         else
         {
-            // expando
             eval_funcall((struct Cons*)eval_me->value, env, eva);
         }
     }
