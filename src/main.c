@@ -53,17 +53,20 @@ int main(int argc, const char **argv)
         puts("missing argument, usage:\n./a.out <filename>");
         return 1;
     }
-    struct Thing *parsed = parse_file(argv[1], pacman);
+    struct Thing *parsed = parse_file("init.lisp", pacman);
     if(parsed == NULL)
     {
-        puts("could not read filename");
+        puts("could not read filename (init.lisp)");
         return 1;
     }
 
     struct Thing *nil = new_nil();
     struct Thing *env = build_std_env();
     struct Thing *thunk = new_function(eval, env);
-    struct Thing *args = new_cons(new_cons(new_cons(new_symbol("lambda"), new_cons(new_nil(), parsed)), nil), nil);
+    // struct Thing *args = new_cons(new_cons(new_cons(new_symbol("lambda"), new_cons(new_nil(), parsed)), nil), new_nil()); // new_cons(new_string(argv[1]), new_nil()));
+    struct Thing *args = new_cons(new_cons(new_cons(new_cons(new_symbol("lambda"), new_cons(new_nil(), parsed)), nil), new_cons(new_string(argv[1]), new_nil())), new_nil());
+    // puts(string_of_thing(args));
+    // puts(string_of_thing(new_cons(new_cons(new_cons(new_symbol("lambda"), new_cons(new_nil(), new_symbol("parsed"))), nil), new_cons(new_string(argv[1]), new_nil()))));
     pacman_track(pacman, thunk);
     pacman_track(pacman, args);
 

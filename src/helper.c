@@ -29,7 +29,7 @@ int multiply(int a, int b)
 
 int a_symbolp(char ch)
 {
-    return ((ch >= 'A' && ch <= 'z') || strchr("+-*/&?<>", ch) != NULL) && ch != '`';
+    return ((ch >= 'A' && ch <= 'z') || strchr("+-*/&?!<>", ch) != NULL) && ch != '`';
 }
 
 struct Thing *wrapper(const char *symbol, struct Thing *thing)
@@ -556,12 +556,19 @@ void parse_object_track(struct Thing *thing)
 
 struct Thing *parse_helper(struct ParseObject *parse_object)
 {
+    int eat_counter = 0;
     while(parse_object->index < parse_object->end && !parse_object->reached_end)
     {
         parse_object->ch = parse_object->content[parse_object->index];
         parse_object->next(parse_object);
         parse_object->index += !parse_object->reached_end;
-        pacman_mark_and_eat(parse_object->pacman);
+
+        if(eat_counter > 1000)
+        {
+            pacman_mark_and_eat(parse_object->pacman);
+            eat_counter = 0;
+        }
+        eat_counter++;
     }
     
     parse_object->ch = '\0';

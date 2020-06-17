@@ -279,7 +279,7 @@ void event_keysm(struct Thing *env, struct Eva *eva)
     CUSTOM_TYPE("event_keysym", args->car, sdl_event_type);
 
     SDL_Event *eve = args->car->value;
-    if(eve->type != SDL_KEYUP || eve->type != SDL_KEYDOWN)
+    if(eve->type != SDL_KEYUP && eve->type != SDL_KEYDOWN)
     {
         update_args(new_cons(new_bool(0), new_nil()), eva);
         return;
@@ -304,6 +304,9 @@ struct Thing *add_sdl_lib(struct Thing *fn_env)
     env = new_cons(new_cons(new_symbol("sdl-load-texture"), new_function(load_texture, new_nil())), env);
     env = new_cons(new_cons(new_symbol("sdl-img-init"), new_function(sdl_image_init, new_nil())), env);
     env = new_cons(new_cons(new_symbol("sdl-keysym"), new_function(event_keysm, new_nil())), env);
+    env = new_cons(new_cons(new_symbol("*sdl-quit*"), new_integer(SDL_QUIT)), env);
+    env = new_cons(new_cons(new_symbol("*sdl-keydown*"), new_integer(SDL_KEYDOWN)), env);
+    env = new_cons(new_cons(new_symbol("*sdl-keyup*"), new_integer(SDL_KEYUP)), env);
 
     return env;
 }

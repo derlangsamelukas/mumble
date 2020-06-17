@@ -697,6 +697,7 @@ void eval_loop(struct Thing *thunk, struct Thing *args, struct Pacman *pacman)
     eva_thing->type = &eva_type;
     struct Thing *old_root = pacman->root;
     pacman_set_root(pacman, new_cons(eva_thing, old_root));
+    int eat_counter = 0;
 
     while(eva.next->type != &TYPES.nil)
     {
@@ -714,7 +715,13 @@ void eval_loop(struct Thing *thunk, struct Thing *args, struct Pacman *pacman)
         eva.next = cons->cdr;
 
         fn->f(fn->env, &eva);
-        pacman_mark_and_eat(pacman);
+
+        if(eat_counter > 1000)
+        {
+            pacman_mark_and_eat(pacman);
+            eat_counter = 0;
+        }
+        eat_counter++;
     }
 
     pacman_set_root(pacman, old_root);
