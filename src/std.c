@@ -88,6 +88,7 @@ void read_file_as_string(struct Thing *env, struct Eva *eva)
     if(NULL == content)
     {
         update_args(new_cons(new_bool(0), new_nil()), eva);
+        return;
     }
 
     update_args(new_cons(new_string_no_copy(content), new_nil()), eva);

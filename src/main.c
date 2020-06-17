@@ -45,15 +45,45 @@ void test()
     printf("active references: %d\n", get_active_references());
 }
 
+struct Thing *add_slash_if_missing(const char *path)
+{
+    if('/' != path[strlen(path) -1])
+    {
+        struct StringBuilder *builder = new_string_builder(path);
+        builder = string_builder_add_copy(builder, "/");
+        char *with_slash = string_builder_to_string_and_destroy(builder);
+
+        return new_string_no_copy(with_slash);
+    }
+
+    return new_string(path);
+}
+
+struct Thing *parse_init_file(const char *lisp_root, struct Pacman *pacman)
+{
+    struct StringBuilder *builder = new_string_builder(lisp_root);
+    builder = string_builder_add_copy(builder, "pff.lisp");
+    char *filename = string_builder_to_string_and_destroy(builder);
+    
+    struct Thing *parsed = parse_file(filename, pacman);
+
+    free_memory(filename, "parse_init_file");
+
+    return parsed;
+}
+
 int main(int argc, const char **argv)
 {
     struct Pacman *pacman = new_pacman(new_nil());
-    if(argc < 2)
+    if(argc < 3)
     {
-        puts("missing argument, usage:\n./a.out <filename>");
+        puts("missing argument, usage:\n./a.out <lisp dir> <project dir>");
         return 1;
     }
-    struct Thing *parsed = parse_file("init.lisp", pacman);
+    struct Thing *lisp_root = add_slash_if_missing(argv[1]);
+    struct Thing *project_root = add_slash_if_missing(argv[2]);
+    
+    struct Thing *parsed = parse_init_file(lisp_root->value, pacman);
     if(parsed == NULL)
     {
         puts("could not read filename (init.lisp)");
@@ -63,10 +93,7 @@ int main(int argc, const char **argv)
     struct Thing *nil = new_nil();
     struct Thing *env = build_std_env();
     struct Thing *thunk = new_function(eval, env);
-    // struct Thing *args = new_cons(new_cons(new_cons(new_symbol("lambda"), new_cons(new_nil(), parsed)), nil), new_nil()); // new_cons(new_string(argv[1]), new_nil()));
-    struct Thing *args = new_cons(new_cons(new_cons(new_cons(new_symbol("lambda"), new_cons(new_nil(), parsed)), nil), new_cons(new_string(argv[1]), new_nil())), new_nil());
-    // puts(string_of_thing(args));
-    // puts(string_of_thing(new_cons(new_cons(new_cons(new_symbol("lambda"), new_cons(new_nil(), new_symbol("parsed"))), nil), new_cons(new_string(argv[1]), new_nil()))));
+    struct Thing *args = new_cons(new_cons(new_cons(new_cons(new_symbol("lambda"), new_cons(new_nil(), parsed)), nil), new_cons(lisp_root, new_cons(project_root, new_nil()))), new_nil());
     pacman_track(pacman, thunk);
     pacman_track(pacman, args);
 
@@ -74,28 +101,6 @@ int main(int argc, const char **argv)
     
     pacman_destroy(pacman);
     printf("active references: %d\n", get_active_references());
-
-
-
-    
-    /* struct Thing *nil = new_nil(); */
-    /* struct Thing *env = build_std_env(); */
-    /* struct Thing *execute_env = new_cons(dope(new_cons(nil, parsed)), env); */
-    /* struct Thing *thunk = new_function(execute_function, execute_env); */
-
-    /* eval_loop(thunk, nil); */
-
-    // test();
-    
-    // printf("active references: %d\n", get_active_references());
-
-
-    /* decrement_reference_counter(print_symbol); */
-    /* decrement_reference_counter(print_thunk); */
-    /* decrement_reference_counter(ident_thunk); */
-    /* decrement_reference_counter(ident_symbol); */
-    /* decrement_reference_counter(ident_pair); */
-    /* decrement_reference_counter(print_pair); */
     
     return 0;
 }
