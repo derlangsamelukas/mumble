@@ -14,7 +14,7 @@ void thing_mark(struct Thing *thing)
 
 void thing_track(struct Thing *thing, struct Thing *other)
 {
-    if(thing->tracked && !other->tracked)
+    if(thing->tracked && !other->tracked && thing->pacman)
     {
         pacman_track(thing->pacman, other);
     }
@@ -63,6 +63,12 @@ void free_nil(struct Thing *thing)
 {
     free_memory(thing, "free_nil");
 }
+
+void free_native(struct Thing *thing)
+{
+    free_memory(thing, "free_native");
+}
+
 
 void simple_mark(struct Thing *thing)
 {
@@ -126,8 +132,9 @@ const struct Types TYPES = {
     {"bool", 5, just_free, simple_mark, simple_track},
     {"cons", 6, free_cons, cons_mark, cons_track},
     {"nil", 7, free_nil, simple_mark, simple_track},
-    {"native", 8, free_nil, simple_mark, simple_track},
-    {"function", 9, free_function, function_mark, function_track}
+    {"native", 8, free_native, simple_mark, simple_track},
+    {"function", 9, free_function, function_mark, function_track},
+    {"thunk", 10, free_thunk, thunk_mark, thunk_track}
 };
 
 struct Thing *new_integer(int value)
@@ -227,9 +234,17 @@ void set_cdr_unsafe(struct Thing *thing, struct Thing *new_cdr)
     cons->cdr = new_cdr;
 }
 
+/* struct Thing NIL = { */
+/*     NULL, */
+/*     &TYPES.nil, */
+/*     1, */
+/*     1, */
+/*     NULL */
+/* }; */
 
 struct Thing *new_nil()
 {
+    // return &NIL;
     struct Thing *thing = new_thing();
     thing->value = NULL;
     thing->type = &TYPES.nil;

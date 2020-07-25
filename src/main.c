@@ -75,6 +75,7 @@ struct Thing *parse_init_file(const char *lisp_root, struct Pacman *pacman)
 int main(int argc, const char **argv)
 {
     struct Pacman *pacman = new_pacman(new_nil());
+    pacman->root->pacman = pacman;
     if(argc < 3)
     {
         puts("missing argument, usage:\n./a.out <lisp dir> <project dir>");

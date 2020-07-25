@@ -1,14 +1,17 @@
 #include "memory.h"
 
 static int active_references = 0;
-
+#include <stdio.h>
 void *new_memory(size_t size, const char *purpose)
 {
     active_references++;
 #ifdef DEBUG
     puts(purpose);
 #endif
-    return malloc(size);
+    void *memory = malloc(size);
+    printf("%p::\n", memory);
+
+    return memory;
 }
 
 void free_memory(void *pointer, const char *purpose)

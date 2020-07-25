@@ -2,20 +2,29 @@
 
 struct Pacman *new_pacman(struct Thing *root)
 {
+    static const int INIT_ARRAY_SIZE = 200;
     struct Pacman *pacman = (struct Pacman*)new_memory(sizeof(struct Pacman*), "Pacman");
-    pacman->all = new_nil();
+    pacman->all = new_array(INIT_ARRAY_SIZE);
     pacman_set_root(pacman, root);
 
     return pacman;
 }
+
 char *string_of_thing(struct Thing*);
+
 void pacman_track(struct Pacman *pacman, struct Thing *thing)
 {
     if(thing->tracked == 1)
     {
         return;
     }
-    pacman->all = new_cons(thing, pacman->all);
+    if(array_full(pacman->all))
+    {
+        struct Array *old = pacman->all;
+        pacman->all = array_from(old, 2 * array_size(old));
+        array_free(old);
+    }
+    array_push(pacman->all, thing);
     thing->tracked = 1;
     thing->pacman = pacman;
     thing->type->track(thing);
@@ -25,6 +34,7 @@ void pacman_set_root(struct Pacman *pacman, struct Thing *new_root)
 {
     pacman->root = new_root;
     pacman_track(pacman, new_root);
+    // pacman->root->pacman = pacman;
     /* pacman_mark(pacman); */
     /* pacman_unmark(pacman); */
 }
@@ -36,12 +46,13 @@ void pacman_mark(struct Pacman *pacman)
 
 void pacman_unmark(struct Pacman *pacman)
 {
-    struct Thing *next = pacman->all;
-    while(next->type == &TYPES.cons)
+    int i = 0;
+    while(i < array_length(pacman->all))
     {
-        struct Cons *next_cons = next->value;
-        next_cons->car->marked = 0;
-        next = next_cons->cdr;
+        struct Thing *current = array_get(pacman->all, i);
+        current->marked = 0;
+
+        i++;
     }
 }
 
@@ -50,43 +61,26 @@ char *string_of_thing(struct Thing*);
 
 void pacman_eat(struct Pacman *pacman)
 {
-    struct Thing *next = pacman->all;
-    struct Thing *dummy_nil = new_nil();
-    struct Thing *dummy_cons = new_cons(dummy_nil, next);
-    struct Thing *prev = dummy_cons;
-    int freed_things = 0;
-    while(next->type == &TYPES.cons)
+    int freed_things = 0; // for debug purpose
+    int i = 0;
+    int length = array_length(pacman->all);
+    while(i < length)
     {
-        struct Cons *next_cons = (struct Cons*)next->value;
-        if(!next_cons->car->marked)
+        struct Thing *current = array_get(pacman->all, i);
+        if(!current->marked)
         {
-            /* if(next_cons->car->reference_counter > 0 && next_cons->car->type->id != 23) */
-            /* { */
-            /*     printf(">%d %s\n", next_cons->car->reference_counter, string_of_thing(next_cons->car)); */
-            /* } */
-            next_cons->car->type->destroy(next_cons->car);
-            struct Cons *prev_cons = (struct Cons*)prev->value;
-            struct Thing *destroy_me = next;
-            prev_cons->cdr = next_cons->cdr;
-            next = next_cons->cdr;
-            destroy_me->type->destroy(destroy_me);
+            printf("%p: %s\n", current, current->type->name);
+            current->tracked = -1;
+            current->type->destroy(current);
+            array_remove(pacman->all, i);
             freed_things++;
+            length = array_length(pacman->all);
         }
         else
         {
-            next_cons->car->marked = 0;
-            prev = next;
-            next = next_cons->cdr;
+            i++;
         }
-        
     }
-    // printf("freed %d things\n", freed_things);
-
-    struct Cons *prev_cons = (struct Cons*)dummy_cons->value;
-    pacman->all = prev_cons->cdr;
-
-    dummy_nil->type->destroy(dummy_nil);
-    dummy_cons->type->destroy(dummy_cons);
 }
 
 void pacman_mark_and_eat(struct Pacman *pacman)
@@ -97,16 +91,15 @@ void pacman_mark_and_eat(struct Pacman *pacman)
 
 void pacman_destroy(struct Pacman *pacman)
 {
-    struct Thing *next = pacman->all;
-    while(next->type == &TYPES.cons)
+    int i = 0;
+    while(i < array_length(pacman->all))
     {
-        struct Cons *next_cons = (struct Cons*)next->value;
-        struct Thing *old = next;
-        next_cons->car->type->destroy(next_cons->car);
-        next = next_cons->cdr;
-        old->type->destroy(old);
+        struct Thing *current = array_get(pacman->all, i);
+        current->type->destroy(current);
+        
+        i++;
     }
-
-    next->type->destroy(next);
+    
+    array_free(pacman->all);
     free_memory(pacman, "pacman_destroy");
 }

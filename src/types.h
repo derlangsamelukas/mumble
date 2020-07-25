@@ -8,32 +8,18 @@
 #include "memory.h"
 
 struct Function;
-struct Call;
 struct Thing;
 struct Type;
 struct Types;
 struct Cons;
 struct Applicative;
 struct Function;
-
-/* struct Function */
-/* { */
-/*     struct Call *(*f)(const void*, const void*, struct Function*); */
-/*     const void *scope; */
-/* }; */
-
-/* struct Call */
-/* { */
-/*     struct Function *func; */
-/*     const void *args; */
-/* }; */
-
-struct Thing;
+struct Array;
 
 struct Pacman
 {
     struct Thing *root;
-    struct Thing *all;
+    struct Array *all;
 };
 
 struct Type
@@ -73,10 +59,22 @@ struct Function
     struct Thing *env;
 };
 
+struct Array
+{
+    struct Thing **buffer;
+    int size; // real allocated memory of buffer may contain NULL or garbage.
+    int length; // length of data that is actually filled with pointers
+};
+
+struct Thunk // same as function, but with better performance
+{
+    void (*f)(struct Array*, struct Eva*);
+    struct Array *env;
+};
 
 struct Types
 {
-    struct Type integer, string, symbol, number, bool, cons, nil, native, function;
+    struct Type integer, string, symbol, number, bool, cons, nil, native, function, thunk;
 };
 
 
@@ -116,5 +114,20 @@ void pacman_unmark(struct Pacman *pacman);
 void pacman_eat(struct Pacman *pacman);
 void pacman_mark_and_eat(struct Pacman *pacman);
 void pacman_destroy(struct Pacman *pacman);
+
+struct Array *new_array(int size);
+struct Array *array_from(struct Array *other, int size);
+struct Thing *array_get(struct Array *array, int index);
+void array_push(struct Array *array, struct Thing *value);
+void array_remove(struct Array *array, int index);
+void array_free(struct Array *array);
+int array_size(struct Array *array);
+int array_length(struct Array *array);
+int array_full(struct Array *array);
+
+struct Thing *new_thunk(void (*f)(struct Array*, struct Eva*), struct Array *env);
+void free_thunk(struct Thing *thing);
+void thunk_mark(struct Thing *thing);
+void thunk_track(struct Thing *thing);
 
 #endif

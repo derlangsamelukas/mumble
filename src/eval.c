@@ -657,7 +657,8 @@ void eval_funcall(struct Cons *funcall, struct Thing *env, struct Eva *eva)
 
 void protect(struct Thing *env, struct Eva *eva)
 {
-    char *error = string_of_thing(eva->args);
+    struct Thing *print_me = eva->args->type == &TYPES.cons ? ((struct Cons*)(eva->args->value))->car : eva->args;
+    char *error = string_of_thing(print_me);
     printf("error: %s\n", error);
     free_memory(error, "protect: free string_of_thing");
     update_args(new_nil(), eva);
@@ -685,10 +686,16 @@ void eva_track(struct Thing *thing)
     thing_track(thing, eva->unwind);
 }
 
+void free_eva(struct Thing *thing)
+{
+    free_memory(thing, "free_eva");
+}
+
+
 void eval_loop(struct Thing *thunk, struct Thing *args, struct Pacman *pacman)
 {
     struct Eva eva;
-    struct Type eva_type = {"eva", 23, free_nil, eva_mark, eva_track};
+    struct Type eva_type = {"eva", 23, free_eva, eva_mark, eva_track};
     eva.next = new_cons(thunk, new_nil());
     eva.args = args;
     eva.unwind = new_cons(new_function(protect, new_nil()), new_nil());
@@ -705,6 +712,7 @@ void eval_loop(struct Thing *thunk, struct Thing *args, struct Pacman *pacman)
 
         if(cons->car->type != &TYPES.function)
         {
+            printf("%p\n", eva.next);
             printf("eval_loop: car is no function\n");
             puts(string_of_thing(cons->car));
             exit(1);
@@ -725,4 +733,10 @@ void eval_loop(struct Thing *thunk, struct Thing *args, struct Pacman *pacman)
     }
 
     pacman_set_root(pacman, old_root);
+    pacman_mark_and_eat(pacman);
+    if(eva_thing->tracked)
+    {
+        printf("this should never happen, if it is stilled tracked the underlying eva is removed from the stack and the eva_thing->value pointer becomes invalid/dangling\n");
+        exit(1);
+    }
 }

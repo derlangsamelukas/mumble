@@ -18,9 +18,18 @@ void free_texture(struct Thing *thing)
     free_memory(thing, "free_texture");
 }
 
+void free_sdl_window_(struct Thing *thing)
+{
+    free_memory(thing, "free_sdl_window");
+}
 
-struct Type sdl_window_type = {"SDL_Window", 78976, free_nil, simple_mark, simple_track};
-struct Type sdl_renderer_type = {"SDL_Renderer", 78977, free_nil, simple_mark, simple_track};
+void free_sdl_renderer_(struct Thing *thing)
+{
+    free_memory(thing, "free_sdl_renderer");
+}
+
+struct Type sdl_window_type = {"SDL_Window", 78976, free_sdl_window_, simple_mark, simple_track};
+struct Type sdl_renderer_type = {"SDL_Renderer", 78977, free_sdl_renderer_, simple_mark, simple_track};
 struct Type sdl_event_type = {"SDL_Event", 78978, free_event, simple_mark, simple_track};
 struct Type sdl_texture_type = {"SDL_Texture", 78979, free_texture, simple_mark, simple_track};
 
