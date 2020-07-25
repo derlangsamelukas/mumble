@@ -3,15 +3,13 @@
 void push_next(struct Thing *next, struct Eva *eva)
 {
     struct Thing *old = eva->next;
-    eva->next = new_cons(next, old);
-    thing_track(old, eva->next);
+    eva->next = new_cons(next, old, eva->environment);
 }
 
 void raiseit(struct Thing *message, struct Eva *eva)
 {
     struct Thing *cc_stack = eva->next;
-    eva->next = new_nil();
-    thing_track(cc_stack, eva->next);
+    eva->next = new_nil(eva->environment);
     if(eva->unwind->type != &TYPES.cons)
     {
         puts("raise called but no unwind handler is set");
@@ -20,23 +18,21 @@ void raiseit(struct Thing *message, struct Eva *eva)
     struct Thing *old_unwind = eva->unwind;
     struct Cons *unwind = (struct Cons*)eva->unwind->value;
     push_next(unwind->car, eva);
-    update_args(new_cons(message, new_cons(cc_stack, new_nil())), eva);
+    update_args(new_cons(message, new_cons(cc_stack, new_nil(eva->environment), eva->environment), eva->environment), eva);
 
     eva->unwind = unwind->cdr;
 }
 
 void update_args(struct Thing *args, struct Eva *eva)
 {
-    
-    thing_track(eva->args, args);
     eva->args = args;
 }
 
-struct Thing *assoc(const char *symbol, struct Thing *lst)
+struct Thing *assoc(const char *symbol, struct Thing *lst, struct Environment *environment)
 {
     if(lst->type != &TYPES.cons)
     {
-        return new_nil();
+        return new_nil(environment);
     }
 
     struct Cons *cons = (struct Cons*)lst->value;
@@ -49,10 +45,10 @@ struct Thing *assoc(const char *symbol, struct Thing *lst)
         }
     }
 
-    return assoc(symbol, cons->cdr);
+    return assoc(symbol, cons->cdr, environment);
 }
 
-struct Thing *resolve_symbol(const char *symbol, struct Thing *env)
+struct Thing *resolve_symbol(const char *symbol, struct Thing *env, struct Environment *environment)
 {
     if(env->type != &TYPES.cons)
     {
@@ -60,7 +56,7 @@ struct Thing *resolve_symbol(const char *symbol, struct Thing *env)
         exit(1);
     }
     struct Cons *env_cons = (struct Cons*)env->value;
-    struct Thing *thing = assoc(symbol, env_cons->cdr);
+    struct Thing *thing = assoc(symbol, env_cons->cdr, environment);
     // puts(string_of_thing(env_cons->cdr));
     if(thing->type != &TYPES.cons)
     {
@@ -78,7 +74,7 @@ void print_(struct Thing *env, struct Eva *eva)
     puts(string);
     free_memory(string, "print_: free thing_of_thing");
 
-    update_args(new_nil(), eva);
+    update_args(new_nil(eva->environment), eva);
 
     // raise(dope(new_string("whooops")), eva);
 }
@@ -94,9 +90,9 @@ void progn(struct Thing *env, struct Eva *eva)
     struct Thing *expr = pair->car;
     struct Thing *expr_env = pair->cdr;
 
-    struct Thing *thunk = new_function(eval, expr_env);
+    struct Thing *thunk = new_function(eval, expr_env, eva->environment);
     push_next(thunk, eva);
-    update_args(new_cons(expr, new_nil()), eva);
+    update_args(new_cons(expr, new_nil(eva->environment), eva->environment), eva);
     /* eva->next = new_cons(thunk, eva->next); */
     /* decrement_reference_counter(thunk); */
     /* decrement_reference_counter(eva->args); */
@@ -135,13 +131,12 @@ void add_macro(struct Thing *env, struct Eva *eva)
     }
 
     struct Thing *macros = env_cons->car;
-    env_cons->car = new_cons(new_cons(args->car, second_args->car), macros);
-    thing_track(macros, env_cons->car);
+    env_cons->car = new_cons(new_cons(args->car, second_args->car, eva->environment), macros, eva->environment);
 
-    update_args(new_nil(), eva);
+    update_args(new_nil(eva->environment), eva);
 }
 
-void execute_function_or_macros(struct Thing *env, struct Eva *eva, struct Thing *(get)(struct Cons*), struct Thing *(build)(struct Cons*, struct Thing*))
+void execute_function_or_macros(struct Thing *env, struct Eva *eva, struct Thing *(get)(struct Cons*), struct Thing *(build)(struct Cons*, struct Thing*, struct Environment*))
 {
     if(env->type != &TYPES.cons)
     {
@@ -190,13 +185,12 @@ void execute_function_or_macros(struct Thing *env, struct Eva *eva, struct Thing
             }
             struct Cons *args_cons = (struct Cons*)args->value;
             struct Thing *symbol = parameter_list_cons->car;
-            struct Thing *argument_pair = new_cons(symbol, args_cons->car);
-            function_env_fns = new_cons(argument_pair, function_env_fns);
+            struct Thing *argument_pair = new_cons(symbol, args_cons->car, eva->environment);
+            function_env_fns = new_cons(argument_pair, function_env_fns, eva->environment);
 
             parameter_list = parameter_list_cons->cdr;
             args = args_cons->cdr;
         }
-        thing_track(function_env_cons->cdr, function_env_fns);
         if(args->type == &TYPES.cons)
         {
             puts("to many arguments for function");
@@ -206,9 +200,8 @@ void execute_function_or_macros(struct Thing *env, struct Eva *eva, struct Thing
     else if(parameter_list->type == &TYPES.symbol)
     {
         struct Thing *symbol = parameter_list;
-        struct Thing *argument_pair = new_cons(symbol, args);
-        function_env_fns = new_cons(argument_pair, function_env_fns);
-        thing_track(function_env_cons->cdr, function_env_fns);
+        struct Thing *argument_pair = new_cons(symbol, args, eva->environment);
+        function_env_fns = new_cons(argument_pair, function_env_fns, eva->environment);
     }
     else
     {
@@ -216,14 +209,13 @@ void execute_function_or_macros(struct Thing *env, struct Eva *eva, struct Thing
         exit(1);
     }
 
-    struct Thing *new_function_env = build(function_env_cons, function_env_fns);//  new_cons(function_env_cons->car, function_env_fns);
-    thing_track(body, new_function_env);
+    struct Thing *new_function_env = build(function_env_cons, function_env_fns, eva->environment);//  new_cons(function_env_cons->car, function_env_fns);
 
-    struct Thing *def_and_env = new_cons(cons->car, new_function_env);
-    push_next(new_function(execute_body, new_cons(body, new_function_env)), eva);
-    push_next(new_function(macro_expand, def_and_env), eva);
+    struct Thing *def_and_env = new_cons(cons->car, new_function_env, eva->environment);
+    push_next(new_function(execute_body, new_cons(body, new_function_env, eva->environment), eva->environment), eva);
+    push_next(new_function(macro_expand, def_and_env, eva->environment), eva);
 
-    update_args(new_nil(), eva);
+    update_args(new_nil(eva->environment), eva);
 }
 
 void execute_body(struct Thing *env, struct Eva *eva)
@@ -239,16 +231,16 @@ void execute_body(struct Thing *env, struct Eva *eva)
     while(current->type == &TYPES.cons)
     {
         struct Cons *expr = (struct Cons*)current->value;
-        struct Thing *thunk = new_function(progn, new_cons(expr->car, new_function_env));
+        struct Thing *thunk = new_function(progn, new_cons(expr->car, new_function_env, eva->environment), eva->environment);
         push_next(thunk, eva);
         current = expr->cdr;
     }
-    update_args(new_nil(), eva);
+    update_args(new_nil(eva->environment), eva);
 }
 
-struct Thing *execute_function_build_function_cons(struct Cons *env, struct Thing *fns)
+struct Thing *execute_function_build_function_cons(struct Cons *env, struct Thing *fns, struct Environment *environment)
 {
-    return new_cons(env->car, fns);
+    return new_cons(env->car, fns, environment);
 }
 
 struct Thing *execute_function_get_function_cons(struct Cons *env)
@@ -256,9 +248,9 @@ struct Thing *execute_function_get_function_cons(struct Cons *env)
     return env->cdr;
 }
 
-struct Thing *execute_function_build_macro_cons(struct Cons *env, struct Thing *macros)
+struct Thing *execute_function_build_macro_cons(struct Cons *env, struct Thing *macros, struct Environment *environment)
 {
-    return new_cons(macros, env->cdr);
+    return new_cons(macros, env->cdr, environment);
 }
 
 struct Thing *execute_function_get_macro_cons(struct Cons *env)
@@ -292,7 +284,7 @@ void macro_expander_update_expr(struct Thing *env, struct Eva *eva)
     struct Cons *env_cons = (struct Cons*)env->value;
     struct Cons *args = (struct Cons*)eva->args->value;
     env_cons->car = args->car;
-    update_args(new_nil(), eva);
+    update_args(new_nil(eva->environment), eva);
 }
 
 void macro_expand_helper(struct Thing *env, struct Eva *eva)
@@ -329,7 +321,7 @@ void macro_expand_helper(struct Thing *env, struct Eva *eva)
         exit(1);
     }
 
-    push_next(new_function(macro_expander_update_expr, expr), eva);
+    push_next(new_function(macro_expander_update_expr, expr, eva->environment), eva);
     push_next(macro, eva);
     update_args(expr_cons2->cdr, eva);
 }
@@ -345,13 +337,12 @@ void expand_args(struct Thing *args, struct Thing *macros, struct Eva *eva)
             if(arg->car->type == &TYPES.symbol)
             {
                 const char *symbol = (const char*)arg->car->value;
-                struct Thing *macro = assoc(symbol, macros);
-                thing_track(args, macro);
+                struct Thing *macro = assoc(symbol, macros, eva->environment);
                 if(macro->type == &TYPES.cons)
                 {
                     struct Cons *macro_cons = (struct Cons*)macro->value;
-                    struct Thing *thunk = new_function(macro_expand_helper, new_cons(macro_cons->cdr, args));
-                    struct Thing *further_expand = new_function(expand_further, new_cons(args, macros));
+                    struct Thing *thunk = new_function(macro_expand_helper, new_cons(macro_cons->cdr, args, eva->environment), eva->environment);
+                    struct Thing *further_expand = new_function(expand_further, new_cons(args, macros, eva->environment), eva->environment);
                     push_next(further_expand, eva);
                     push_next(thunk, eva);
                 }
@@ -424,13 +415,12 @@ void macro_expand(struct Thing *env, struct Eva *eva)
                 const char *symbol = (const char*)expr_cons->car->value;
                 // puts(string_of_thing(expr->car));
                 // puts(symbol);
-                struct Thing *macro = assoc(symbol, macros);
-                thing_track(body, macro);
+                struct Thing *macro = assoc(symbol, macros, eva->environment);
                 if(macro->type == &TYPES.cons)
                 {
                     struct Cons *macro_cons = (struct Cons*)macro->value;
-                    struct Thing *thunk = new_function(macro_expand_helper, new_cons(macro_cons->cdr, current));
-                    struct Thing *further_expand = new_function(expand_further, new_cons(body, macros));
+                    struct Thing *thunk = new_function(macro_expand_helper, new_cons(macro_cons->cdr, current, eva->environment), eva->environment);
+                    struct Thing *further_expand = new_function(expand_further, new_cons(body, macros, eva->environment), eva->environment);
                     push_next(further_expand, eva);
                     push_next(thunk, eva);
                 }
@@ -459,7 +449,7 @@ void eval_function_helper(struct Thing *env, struct Eva *eva)
     struct Thing *parameter_list_and_body = env_cons->car;
     struct Thing *function_env = env_cons->cdr;
 
-    update_args(new_cons(new_function(execute_function, new_cons(parameter_list_and_body, function_env)), new_nil()), eva);
+    update_args(new_cons(new_function(execute_function, new_cons(parameter_list_and_body, function_env, eva->environment), eva->environment), new_nil(eva->environment), eva->environment), eva);
 }
 
 void eval_macros_helper(struct Thing *env, struct Eva *eva)
@@ -473,7 +463,7 @@ void eval_macros_helper(struct Thing *env, struct Eva *eva)
     struct Thing *parameter_list_and_body = env_cons->car;
     struct Thing *function_env = env_cons->cdr;
 
-    update_args(new_cons(new_function(execute_macros, new_cons(parameter_list_and_body, function_env)), new_nil()), eva);
+    update_args(new_cons(new_function(execute_macros, new_cons(parameter_list_and_body, function_env, eva->environment), eva->environment), new_nil(eva->environment), eva->environment), eva);
 }
 
 void eval_function(struct Cons *cons, struct Thing *env, struct Eva *eva, void (*cc)(struct Thing*, struct Eva*))
@@ -489,13 +479,13 @@ void eval_function(struct Cons *cons, struct Thing *env, struct Eva *eva, void (
         puts("invalid lambda / macros definition: body is no list");
         exit(1);
     }
-    struct Thing *reversed_body = lst_reverse(parameter_list_and_body->cdr);
-    struct Thing *def = new_cons(parameter_list_and_body->car, reversed_body);
-    struct Thing *def_and_env = new_cons(def, env);
-    push_next(new_function(cc, def_and_env), eva);
+    struct Thing *reversed_body = lst_reverse(parameter_list_and_body->cdr, eva->environment);
+    struct Thing *def = new_cons(parameter_list_and_body->car, reversed_body, eva->environment);
+    struct Thing *def_and_env = new_cons(def, env, eva->environment);
+    push_next(new_function(cc, def_and_env, eva->environment), eva);
     // push_next(new_function(macro_expand, def_and_env), eva);
     
-    update_args(new_nil(), eva);
+    update_args(new_nil(eva->environment), eva);
 }
 
 void eval(struct Thing *env, struct Eva *eva)
@@ -505,15 +495,14 @@ void eval(struct Thing *env, struct Eva *eva)
 
     if(eval_me->type == &TYPES.symbol)
     {
-        struct Thing *val = assoc((char*)eval_me->value, env);
-        thing_track(eval_me, val);
+        struct Thing *val = assoc((char*)eval_me->value, env, eva->environment);
         if(val->type != &TYPES.cons)
         {
             printf("undefined symbol: %s\n", (char*)eval_me->value);
             exit(1);
         }
         struct Cons *val_cons = val->value;
-        update_args(new_cons(val_cons->cdr, new_nil()), eva);
+        update_args(new_cons(val_cons->cdr, new_nil(eva->environment), eva->environment), eva);
         // decrement_reference_counter(eva->args);
         // eva->args = new_cons(resolve_symbol((char*)eval_me->value, env), new_nil()); // @todo throw error when symbol does not exist
     }
@@ -541,9 +530,7 @@ void eval(struct Thing *env, struct Eva *eva)
     }
     else
     {
-        update_args(new_cons(eval_me, new_nil()), eva);
-        /* decrement_reference_counter(eva->args); */
-        /* eva->args = new_cons(eval_me, new_nil()); */
+        update_args(new_cons(eval_me, new_nil(eva->environment), eva->environment), eva);
     }
 }
 
@@ -557,7 +544,7 @@ void chain_finish(struct Thing *env, struct Eva *eva)
     }
     else if(eva->args->type == &TYPES.nil)
     {
-        current = new_nil();
+        current = new_nil(eva->environment);
     }
     else
     {
@@ -565,7 +552,7 @@ void chain_finish(struct Thing *env, struct Eva *eva)
         exit(1);
     }
 
-    update_args(new_cons(current, env), eva);
+    update_args(new_cons(current, env, eva->environment), eva);
     // eva->args = new_cons(current, env);
 }
 
@@ -577,22 +564,22 @@ void chain_helper(struct Thing *env, struct Eva *eva)
         exit(1);
     }
     struct Cons *cons = (struct Cons*)env->value;
-    struct Thing *finish = new_function(chain_finish, eva->args);
+    struct Thing *finish = new_function(chain_finish, eva->args, eva->environment);
     push_next(finish, eva);
     push_next(cons->car, eva);
     /* eva->next = new_cons(finish, eva->next); */
     /* eva->next = new_cons(cons->car, eva->next); */
-    update_args(new_cons(cons->cdr, new_nil()), eva);
+    update_args(new_cons(cons->cdr, new_nil(eva->environment), eva->environment), eva);
     // decrement_reference_counter(eva->args);
     // eva->args = new_cons(cons->cdr, new_nil());
 }
 
-struct Thing *chain(struct Thing *thunk, struct Thing *eval_me)
+struct Thing *chain(struct Thing *thunk, struct Thing *eval_me, struct Environment *environment)
 {
-    struct Thing *env = new_cons(thunk, eval_me);
-    struct Thing *f = new_function(chain_helper, env);
+    struct Thing *env = new_cons(thunk, eval_me, environment);
+    struct Thing *f = new_function(chain_helper, env, environment);
 
-    return f; // free me
+    return f;
 }
 
 void eval_funcall_helper(struct Thing *env, struct Eva *eva)
@@ -628,32 +615,23 @@ void eval_funcall_helper(struct Thing *env, struct Eva *eva)
     while(args->type == &TYPES.cons)
     {
         struct Cons *cons = (struct Cons*)args->value;
-        push_next(chain(new_function(eval, env_cons->cdr), cons->car), eva);
+        push_next(chain(new_function(eval, env_cons->cdr, eva->environment), cons->car, eva->environment), eva);
         // eva->next = new_cons(chain(new_function(eval, env_cons->cdr), cons->car), eva->next);
         args = cons->cdr;
     }
 
-    update_args(new_nil(), eva);
+    update_args(new_nil(eva->environment), eva);
     /* decrement_reference_counter(eva->args); */
     /* eva->args = new_nil(); */
 }
 
 void eval_funcall(struct Cons *funcall, struct Thing *env, struct Eva *eva)
 {
-    struct Thing *cc = new_function(eval_funcall_helper, new_cons(funcall->cdr, env));
+    struct Thing *cc = new_function(eval_funcall_helper, new_cons(funcall->cdr, env, eva->environment), eva->environment);
     push_next(cc, eva);
-    //eva->next = new_cons(cc, eva->next);
-    push_next(new_function(eval, env), eva);
-    // eva->next = new_cons(new_function(eval, env), eva->next);
-    update_args(new_cons(funcall->car, new_nil()), eva);
-    /* decrement_reference_counter(eva->args); */
-    /* eva->args = new_cons(funcall->car, new_nil()); */
+    push_next(new_function(eval, env, eva->environment), eva);
+    update_args(new_cons(funcall->car, new_nil(eva->environment), eva->environment), eva);
 }
-
-/* void test_fn(struct Thing *env, struct Eva *eva) */
-/* { */
-/*     eva.next = new_cons(conc_thunk, new_cons(test_fn2_thunk, eva.next)); */
-/* } */
 
 void protect(struct Thing *env, struct Eva *eva)
 {
@@ -661,29 +639,17 @@ void protect(struct Thing *env, struct Eva *eva)
     char *error = string_of_thing(print_me);
     printf("error: %s\n", error);
     free_memory(error, "protect: free string_of_thing");
-    update_args(new_nil(), eva);
+    update_args(new_nil(eva->environment), eva);
 }
 
 void eva_mark(struct Thing *thing)
 {
     struct Eva *eva = (struct Eva*)thing->value;
     simple_mark(thing);
-    thing_track(thing, eva->next);
-    thing_track(thing, eva->args);
-    thing_track(thing, eva->unwind);
 
-    // puts(string_of_thing(eva->next));
     thing_mark(eva->next);
     thing_mark(eva->args);
     thing_mark(eva->unwind);
-}
-
-void eva_track(struct Thing *thing)
-{
-    struct Eva *eva = (struct Eva*)thing->value;
-    thing_track(thing, eva->next);
-    thing_track(thing, eva->args);
-    thing_track(thing, eva->unwind);
 }
 
 void free_eva(struct Thing *thing)
@@ -692,18 +658,19 @@ void free_eva(struct Thing *thing)
 }
 
 
-void eval_loop(struct Thing *thunk, struct Thing *args, struct Pacman *pacman)
+void eval_loop(struct Thing *thunk, struct Thing *args, struct Environment *environment)
 {
     struct Eva eva;
-    struct Type eva_type = {"eva", 23, free_eva, eva_mark, eva_track};
-    eva.next = new_cons(thunk, new_nil());
+    struct Type eva_type = {"eva", 23, free_eva, eva_mark};
+    eva.environment = environment;
+    eva.next = new_cons(thunk, new_nil(environment), environment);
     eva.args = args;
-    eva.unwind = new_cons(new_function(protect, new_nil()), new_nil());
-    struct Thing *eva_thing = new_thing();
+    eva.unwind = new_cons(new_function(protect, new_nil(environment), environment), new_nil(environment), environment);
+    struct Thing *eva_thing = new_thing(environment);
     eva_thing->value = &eva;
     eva_thing->type = &eva_type;
-    struct Thing *old_root = pacman->root;
-    pacman_set_root(pacman, new_cons(eva_thing, old_root));
+    struct Thing *old_root = environment->pacman->root;
+    pacman_set_root(environment->pacman, new_cons(eva_thing, old_root, environment));
     int eat_counter = 0;
 
     while(eva.next->type != &TYPES.nil)
@@ -726,14 +693,14 @@ void eval_loop(struct Thing *thunk, struct Thing *args, struct Pacman *pacman)
 
         if(eat_counter > 1000)
         {
-            pacman_mark_and_eat(pacman);
+            pacman_mark_and_eat(environment->pacman);
             eat_counter = 0;
         }
         eat_counter++;
     }
 
-    pacman_set_root(pacman, old_root);
-    pacman_mark_and_eat(pacman);
+    pacman_set_root(environment->pacman, old_root);
+    pacman_mark_and_eat(environment->pacman);
     if(eva_thing->tracked)
     {
         printf("this should never happen, if it is stilled tracked the underlying eva is removed from the stack and the eva_thing->value pointer becomes invalid/dangling\n");

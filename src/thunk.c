@@ -1,8 +1,8 @@
 #include "types.h"
 
-struct Thing *new_thunk(void (*f)(struct Array*, struct Eva*), struct Array *env)
+struct Thing *new_thunk(void (*f)(struct Array*, struct Eva*), struct Array *env, struct Environment *environment)
 {
-    struct Thing *thing = new_thing();
+    struct Thing *thing = new_thing(environment);
     struct Thunk *thunk = new_memory(sizeof(struct Thunk), "new_thunk");
     thunk->f = f;
     thunk->env = env;
@@ -29,23 +29,7 @@ void thunk_mark(struct Thing *thing)
         struct Thing *child = array_get(thunk->env, i);
         if(!child->marked)
         {
-            thing_track(thing, child);
             thing_mark(child);
-        }
-        i++;
-    }
-}
-
-void thunk_track(struct Thing *thing)
-{
-    struct Thunk *thunk = thing->value;
-    int i = 0;
-    while(i < array_size(thunk->env))
-    {
-        struct Thing *child = array_get(thunk->env, i);
-        if(!child->tracked)
-        {
-            thing_track(thing, child);
         }
         i++;
     }

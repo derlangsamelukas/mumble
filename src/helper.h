@@ -15,7 +15,7 @@ struct StringBuilderCons
 
 struct FunctionWrapperCons
 {
-    struct Thing *(*car)(struct Thing*);
+    struct Thing *(*car)(struct Thing*, struct Environment*);
     struct FunctionWrapperCons *cdr;
 };
 
@@ -39,7 +39,7 @@ struct ParseObject
     const int end;
     int reached_end;
     struct FunctionWrapperCons *wrapper;
-    struct Pacman *pacman;
+    struct Environment *environment;
 };
 
 int bit_or(int, int);
@@ -52,14 +52,13 @@ void return_corresponding_function(struct ParseObject *parse_object);
 char *string_of_list(struct Thing *lst);
 char *string_of_thing(struct Thing *thing);
 struct Thing *parse_helper(struct ParseObject *parse_object);
-struct Thing *parse(const char *content, struct Pacman *pacman);
-struct Thing *lst_reverse(struct Thing *lst);
+struct Thing *parse(const char *content, struct Environment *environment);
+struct Thing *lst_reverse(struct Thing *lst, struct Environment *environment);
 
 struct StringBuilder *new_string_builder(const char *init_and_copy_me);
 struct StringBuilder *string_builder_add_copy(struct StringBuilder *builder, const char *copy_me);
 struct StringBuilder *string_builder_add_ref(struct StringBuilder *builder, char *reference_me);
 char *string_builder_to_string_and_destroy(struct StringBuilder *builder);
-struct Thing *lst_reverse(struct Thing *lst);
 void parse_object_free(struct Thing *thing);
 void parse_object_mark(struct Thing *thing);
 int listp(struct Thing *thing);

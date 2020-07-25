@@ -28,10 +28,10 @@ void free_sdl_renderer_(struct Thing *thing)
     free_memory(thing, "free_sdl_renderer");
 }
 
-struct Type sdl_window_type = {"SDL_Window", 78976, free_sdl_window_, simple_mark, simple_track};
-struct Type sdl_renderer_type = {"SDL_Renderer", 78977, free_sdl_renderer_, simple_mark, simple_track};
-struct Type sdl_event_type = {"SDL_Event", 78978, free_event, simple_mark, simple_track};
-struct Type sdl_texture_type = {"SDL_Texture", 78979, free_texture, simple_mark, simple_track};
+struct Type sdl_window_type = {"SDL_Window", 78976, free_sdl_window_, simple_mark};
+struct Type sdl_renderer_type = {"SDL_Renderer", 78977, free_sdl_renderer_, simple_mark};
+struct Type sdl_event_type = {"SDL_Event", 78978, free_event, simple_mark};
+struct Type sdl_texture_type = {"SDL_Texture", 78979, free_texture, simple_mark};
 
 void sdl_windowp(struct Thing *env, struct Eva *eva) {}
 void sdl_eventp(struct Thing *env, struct Eva *eva) {}
@@ -46,7 +46,7 @@ void sdl_init_(struct Thing *env, struct Eva *eva)
         exit(1);
     }
     SDL_Init(SDL_INIT_EVERYTHING);
-    update_args(new_nil(), eva);
+    update_args(new_nil(eva->environment), eva);
 }
 
 void sdl_image_init(struct Thing *env, struct Eva *eva)
@@ -54,7 +54,7 @@ void sdl_image_init(struct Thing *env, struct Eva *eva)
     ARG_END("sdl_image_init", eva->args);
     IMG_Init(IMG_INIT_JPG | IMG_INIT_PNG);
 
-    update_args(new_cons(new_nil(), new_nil()), eva);
+    update_args(new_cons(new_nil(eva->environment), new_nil(eva->environment), eva->environment), eva);
 }
 
 void create_window(struct Thing *env, struct Eva *eva)
@@ -80,20 +80,20 @@ void create_window(struct Thing *env, struct Eva *eva)
     SDL_Window *win = SDL_CreateWindow(first_arg->car->value, INT(second_arg->car), INT(third_arg->car), INT(fourth_arg->car), INT(fifth_arg->car), SDL_WINDOW_RESIZABLE);
     if(NULL == win)
     {
-        update_args(new_cons(new_bool(0), new_nil()), eva);
+        update_args(new_cons(new_bool(0, eva->environment), new_nil(eva->environment), eva->environment), eva);
         return;
     }
-    struct Thing *sdl_window = new_thing();
+    struct Thing *sdl_window = new_thing(eva->environment);
     sdl_window->value = win;
     sdl_window->type = &sdl_window_type;
 
-    update_args(new_cons(sdl_window, new_nil()), eva);
+    update_args(new_cons(sdl_window, new_nil(eva->environment), eva->environment), eva);
 }
 
 void sdl_delay_(struct Thing *env, struct Eva *eva)
 {
     SDL_Delay(5000);
-    update_args(new_nil(), eva);
+    update_args(new_nil(eva->environment), eva);
 }
 
 void create_renderer(struct Thing *env, struct Eva *eva)
@@ -105,14 +105,14 @@ void create_renderer(struct Thing *env, struct Eva *eva)
     SDL_Renderer *raw_blender = SDL_CreateRenderer(args->car->value, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
     if(NULL == raw_blender)
     {
-        update_args(new_cons(new_bool(0), new_nil()), eva);
+        update_args(new_cons(new_bool(0, eva->environment), new_nil(eva->environment), eva->environment), eva);
         return;
     }
-    struct Thing *blender = new_thing();
+    struct Thing *blender = new_thing(eva->environment);
     blender->value = raw_blender;
     blender->type = &sdl_renderer_type;
     
-    update_args(new_cons(blender, new_nil()), eva);
+    update_args(new_cons(blender, new_nil(eva->environment), eva->environment), eva);
 }
 
 void destroy_renderer(struct Thing *env, struct Eva *eva)
@@ -124,7 +124,7 @@ void destroy_renderer(struct Thing *env, struct Eva *eva)
 
     SDL_DestroyRenderer(args->car->value);
 
-    update_args(new_cons(new_nil(), new_nil()), eva);
+    update_args(new_cons(new_nil(eva->environment), new_nil(eva->environment), eva->environment), eva);
 }
 
 void destroy_window(struct Thing *env, struct Eva *eva)
@@ -136,7 +136,7 @@ void destroy_window(struct Thing *env, struct Eva *eva)
 
     SDL_DestroyWindow(args->car->value);
 
-    update_args(new_cons(new_nil(), new_nil()), eva);
+    update_args(new_cons(new_nil(eva->environment), new_nil(eva->environment), eva->environment), eva);
 }
 
 void renderer_clear(struct Thing *env, struct Eva *eva)
@@ -148,7 +148,7 @@ void renderer_clear(struct Thing *env, struct Eva *eva)
 
     SDL_RenderClear(args->car->value);
 
-    update_args(new_cons(new_nil(), new_nil()), eva);
+    update_args(new_cons(new_nil(eva->environment), new_nil(eva->environment), eva->environment), eva);
 }
 
 void renderer_present(struct Thing *env, struct Eva *eva)
@@ -160,17 +160,17 @@ void renderer_present(struct Thing *env, struct Eva *eva)
 
     SDL_RenderPresent(args->car->value);
 
-    update_args(new_cons(new_nil(), new_nil()), eva);
+    update_args(new_cons(new_nil(eva->environment), new_nil(eva->environment), eva->environment), eva);
 }
 
 void create_event(struct Thing *env, struct Eva *eva)
 {
     ARG_END("create_event", eva->args);
-    struct Thing *eve = new_thing();
+    struct Thing *eve = new_thing(eva->environment);
     eve->value = new_memory(sizeof(SDL_Event), "SDL_Event");
     eve->type = &sdl_event_type;
 
-    update_args(new_cons(eve, new_nil()), eva);
+    update_args(new_cons(eve, new_nil(eva->environment), eva->environment), eva);
 }
 
 void event_poll(struct Thing *env, struct Eva *eva)
@@ -181,7 +181,7 @@ void event_poll(struct Thing *env, struct Eva *eva)
 
     CUSTOM_TYPE("event_poll", args->car, sdl_event_type);
 
-    update_args(new_cons(new_bool(SDL_PollEvent(args->car->value)), new_nil()), eva);
+    update_args(new_cons(new_bool(SDL_PollEvent(args->car->value), eva->environment), new_nil(eva->environment), eva->environment), eva);
 }
 
 void event_type(struct Thing *env, struct Eva *eva)
@@ -194,7 +194,7 @@ void event_type(struct Thing *env, struct Eva *eva)
 
     SDL_Event *eve = args->car->value;
 
-    update_args(new_cons(new_integer(eve->type), new_nil()), eva);
+    update_args(new_cons(new_integer(eve->type, eva->environment), new_nil(eva->environment), eva->environment), eva);
 }
 
 void load_texture(struct Thing *env, struct Eva *eva)
@@ -210,14 +210,14 @@ void load_texture(struct Thing *env, struct Eva *eva)
     SDL_Texture *raw_texture = IMG_LoadTexture(args->car->value, second_arg->car->value);
     if(NULL == raw_texture)
     {
-        update_args(new_cons(new_bool(0), new_nil()), eva);
+        update_args(new_cons(new_bool(0, eva->environment), new_nil(eva->environment), eva->environment), eva);
         return;
     }
-    struct Thing *texture = new_thing();
+    struct Thing *texture = new_thing(eva->environment);
     texture->value = raw_texture;
     texture->type = &sdl_texture_type;
 
-    update_args(new_cons(texture, new_nil()), eva);
+    update_args(new_cons(texture, new_nil(eva->environment), eva->environment), eva);
 }
 
 void fill_rect(SDL_Rect *rect, struct Thing *lst)
@@ -277,7 +277,7 @@ void render_copy(struct Thing *env, struct Eva *eva)
     }
     
     SDL_RenderCopy(args->car->value, second_arg->car->value, src, dest);
-    update_args(new_cons(new_bool(0), new_nil()), eva);
+    update_args(new_cons(new_bool(0, eva->environment), new_nil(eva->environment), eva->environment), eva);
 }
 
 void event_keysm(struct Thing *env, struct Eva *eva)
@@ -290,32 +290,32 @@ void event_keysm(struct Thing *env, struct Eva *eva)
     SDL_Event *eve = args->car->value;
     if(eve->type != SDL_KEYUP && eve->type != SDL_KEYDOWN)
     {
-        update_args(new_cons(new_bool(0), new_nil()), eva);
+        update_args(new_cons(new_bool(0, eva->environment), new_nil(eva->environment), eva->environment), eva);
         return;
     }
-    update_args(new_cons(new_integer(eve->key.keysym.sym), new_nil()), eva);
+    update_args(new_cons(new_integer(eve->key.keysym.sym, eva->environment), new_nil(eva->environment), eva->environment), eva);
 }
 
-struct Thing *add_sdl_lib(struct Thing *fn_env)
+struct Thing *add_sdl_lib(struct Thing *fn_env, struct Environment *environment)
 {
-    struct Thing *env = new_cons(new_cons(new_symbol("sdl-init"), new_function(sdl_init_, new_nil())), fn_env);
-    env = new_cons(new_cons(new_symbol("sdl-create-window"), new_function(create_window, new_nil())), env);
-    env = new_cons(new_cons(new_symbol("sdl-delay"), new_function(sdl_delay_, new_nil())), env);
-    env = new_cons(new_cons(new_symbol("sdl-create-renderer"), new_function(create_renderer, new_nil())), env);
-    env = new_cons(new_cons(new_symbol("sdl-destroy-window"), new_function(destroy_window, new_nil())), env);
-    env = new_cons(new_cons(new_symbol("sdl-destroy-renderer"), new_function(destroy_renderer, new_nil())), env);
-    env = new_cons(new_cons(new_symbol("sdl-create-event"), new_function(create_event, new_nil())), env);
-    env = new_cons(new_cons(new_symbol("sdl-event-poll"), new_function(event_poll, new_nil())), env);
-    env = new_cons(new_cons(new_symbol("sdl-renderer-clear"), new_function(renderer_clear, new_nil())), env);
-    env = new_cons(new_cons(new_symbol("sdl-renderer-present"), new_function(renderer_present, new_nil())), env);
-    env = new_cons(new_cons(new_symbol("sdl-event-get-type"), new_function(event_type, new_nil())), env);
-    env = new_cons(new_cons(new_symbol("sdl-renderer-copy"), new_function(render_copy, new_nil())), env);
-    env = new_cons(new_cons(new_symbol("sdl-load-texture"), new_function(load_texture, new_nil())), env);
-    env = new_cons(new_cons(new_symbol("sdl-img-init"), new_function(sdl_image_init, new_nil())), env);
-    env = new_cons(new_cons(new_symbol("sdl-keysym"), new_function(event_keysm, new_nil())), env);
-    env = new_cons(new_cons(new_symbol("*sdl-quit*"), new_integer(SDL_QUIT)), env);
-    env = new_cons(new_cons(new_symbol("*sdl-keydown*"), new_integer(SDL_KEYDOWN)), env);
-    env = new_cons(new_cons(new_symbol("*sdl-keyup*"), new_integer(SDL_KEYUP)), env);
+    struct Thing *env = new_cons(new_cons(new_symbol("sdl-init", environment), new_function(sdl_init_, new_nil(environment), environment), environment), fn_env, environment);
+    env = new_cons(new_cons(new_symbol("sdl-create-window", environment), new_function(create_window, new_nil(environment), environment), environment), env, environment);
+    env = new_cons(new_cons(new_symbol("sdl-delay", environment), new_function(sdl_delay_, new_nil(environment), environment), environment), env, environment);
+    env = new_cons(new_cons(new_symbol("sdl-create-renderer", environment), new_function(create_renderer, new_nil(environment), environment), environment), env, environment);
+    env = new_cons(new_cons(new_symbol("sdl-destroy-window", environment), new_function(destroy_window, new_nil(environment), environment), environment), env, environment);
+    env = new_cons(new_cons(new_symbol("sdl-destroy-renderer", environment), new_function(destroy_renderer, new_nil(environment), environment), environment), env, environment);
+    env = new_cons(new_cons(new_symbol("sdl-create-event", environment), new_function(create_event, new_nil(environment), environment), environment), env, environment);
+    env = new_cons(new_cons(new_symbol("sdl-event-poll", environment), new_function(event_poll, new_nil(environment), environment), environment), env, environment);
+    env = new_cons(new_cons(new_symbol("sdl-renderer-clear", environment), new_function(renderer_clear, new_nil(environment), environment), environment), env, environment);
+    env = new_cons(new_cons(new_symbol("sdl-renderer-present", environment), new_function(renderer_present, new_nil(environment), environment), environment), env, environment);
+    env = new_cons(new_cons(new_symbol("sdl-event-get-type", environment), new_function(event_type, new_nil(environment), environment), environment), env, environment);
+    env = new_cons(new_cons(new_symbol("sdl-renderer-copy", environment), new_function(render_copy, new_nil(environment), environment), environment), env, environment);
+    env = new_cons(new_cons(new_symbol("sdl-load-texture", environment), new_function(load_texture, new_nil(environment), environment), environment), env, environment);
+    env = new_cons(new_cons(new_symbol("sdl-img-init", environment), new_function(sdl_image_init, new_nil(environment), environment), environment), env, environment);
+    env = new_cons(new_cons(new_symbol("sdl-keysym", environment), new_function(event_keysm, new_nil(environment), environment), environment), env, environment);
+    env = new_cons(new_cons(new_symbol("*sdl-quit*", environment), new_integer(SDL_QUIT, environment), environment), env, environment);
+    env = new_cons(new_cons(new_symbol("*sdl-keydown*", environment), new_integer(SDL_KEYDOWN, environment), environment), env, environment);
+    env = new_cons(new_cons(new_symbol("*sdl-keyup*", environment), new_integer(SDL_KEYUP, environment), environment), env, environment);
 
     return env;
 }

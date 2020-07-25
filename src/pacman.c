@@ -1,11 +1,11 @@
 #include "types.h"
 
-struct Pacman *new_pacman(struct Thing *root)
+struct Pacman *new_pacman()
 {
     static const int INIT_ARRAY_SIZE = 200;
     struct Pacman *pacman = (struct Pacman*)new_memory(sizeof(struct Pacman*), "Pacman");
     pacman->all = new_array(INIT_ARRAY_SIZE);
-    pacman_set_root(pacman, root);
+    pacman->root = NULL; // risky
 
     return pacman;
 }
@@ -26,17 +26,14 @@ void pacman_track(struct Pacman *pacman, struct Thing *thing)
     }
     array_push(pacman->all, thing);
     thing->tracked = 1;
-    thing->pacman = pacman;
-    thing->type->track(thing);
+    // thing->pacman = pacman;
+    // thing->type->track(thing);
 }
 
 void pacman_set_root(struct Pacman *pacman, struct Thing *new_root)
 {
     pacman->root = new_root;
-    pacman_track(pacman, new_root);
-    // pacman->root->pacman = pacman;
-    /* pacman_mark(pacman); */
-    /* pacman_unmark(pacman); */
+    // pacman_track(pacman, new_root);
 }
 
 void pacman_mark(struct Pacman *pacman)

@@ -32,24 +32,24 @@ int a_symbolp(char ch)
     return ((ch >= 'A' && ch <= 'z') || strchr("+-*/&?!<>.:", ch) != NULL) && ch != '`';
 }
 
-struct Thing *wrapper(const char *symbol, struct Thing *thing)
+struct Thing *wrapper(const char *symbol, struct Thing *thing, struct Environment *environment)
 {
-    return new_cons(new_symbol(symbol), new_cons(thing, new_nil()));
+    return new_cons(new_symbol(symbol, environment), new_cons(thing, new_nil(environment), environment), environment);
 }
 
-struct Thing *quote_wrapper(struct Thing *thing)
+struct Thing *quote_wrapper(struct Thing *thing, struct Environment *environment)
 {
-    return wrapper("quote", thing);
+    return wrapper("quote", thing, environment);
 }
 
-struct Thing *unquote_wrapper(struct Thing *thing)
+struct Thing *unquote_wrapper(struct Thing *thing, struct Environment *environment)
 {
-    return wrapper("unquote", thing);
+    return wrapper("unquote", thing, environment);
 }
 
-struct Thing *quasiquote_wrapper(struct Thing *thing)
+struct Thing *quasiquote_wrapper(struct Thing *thing, struct Environment *environment)
 {
-    return wrapper("quasiquote", thing);
+    return wrapper("quasiquote", thing, environment);
 }
 
 struct Thing *wrap_when_needed(struct Thing *thing, struct ParseObject *parse_object)
@@ -60,7 +60,7 @@ struct Thing *wrap_when_needed(struct Thing *thing, struct ParseObject *parse_ob
     }
 
     struct FunctionWrapperCons *cons = parse_object->wrapper;
-    thing = cons->car(thing);
+    thing = cons->car(thing, parse_object->environment);
     parse_object->wrapper = cons->cdr;
     free_memory(cons, "wrap_when_needed: FunctionWrapperCons");
 
@@ -71,8 +71,7 @@ void push_lst(struct Thing *car, struct ParseObject *parse_object)
 {
     struct Thing *old = parse_object->lst;
     car = wrap_when_needed(car, parse_object);
-    parse_object->lst = new_cons(car, old);
-    thing_track(old, parse_object->lst);
+    parse_object->lst = new_cons(car, old, parse_object->environment);
 }
 
 void a_symbol_cc(struct ParseObject *parse_object)
@@ -90,7 +89,7 @@ void a_symbol_cc(struct ParseObject *parse_object)
         parse_object->index - parse_object->corresponding_value
     );
     string[parse_object->index - parse_object->corresponding_value] = '\0';
-    push_lst(new_symbol_no_copy(string), parse_object);
+    push_lst(new_symbol_no_copy(string, parse_object->environment), parse_object);
     // parse_object->lst = new_cons(new_symbol_no_copy(string), parse_object->lst);
 
     return_corresponding_function(parse_object);
@@ -119,7 +118,7 @@ void a_string_cc(struct ParseObject *parse_object)
         index - parse_object->corresponding_value
         );
     string[index - parse_object->corresponding_value] = '\0';
-    push_lst(new_string_no_copy(string), parse_object);
+    push_lst(new_string_no_copy(string, parse_object->environment), parse_object);
     // parse_object->lst = new_cons(new_string_no_copy(string), parse_object->lst);
 
     parse_object->next = return_corresponding_function;
@@ -135,21 +134,21 @@ void a_list_start(struct ParseObject *parse_object)
 {
     struct ParseObject copy;
     memcpy(&copy, parse_object, sizeof(struct ParseObject));
-    copy.lst = new_nil();
+    copy.lst = new_nil(parse_object->environment);
     copy.index++;
     copy.next = return_corresponding_function;
     copy.wrapper = NULL;
-    struct Thing *root = new_thing();
+    struct Thing *root = new_thing(parse_object->environment);
     root->type = &parse_object_type;
     root->value = &copy;
-    struct Thing *old_root = copy.pacman->root;
-    pacman_set_root(copy.pacman, new_cons(root, copy.pacman->root));
+    struct Thing *old_root = copy.environment->pacman->root;
+    pacman_set_root(copy.environment->pacman, new_cons(root, copy.environment->pacman->root, copy.environment));
     struct Thing *value = parse_helper(&copy);
     parse_object->index = copy.index;
     push_lst(value, parse_object);
     // parse_object->lst = new_cons(value, parse_object->lst);
     parse_object->next = return_corresponding_function;
-    pacman_set_root(copy.pacman, old_root);
+    pacman_set_root(copy.environment->pacman, old_root);
 }
 
 void a_list_end(struct ParseObject *parse_object)
@@ -168,7 +167,7 @@ void a_number_cc(struct ParseObject *parse_object)
 
     double number = 0;
     sscanf(parse_object->content + parse_object->corresponding_value, "%lf", &number);
-    push_lst(new_number(number), parse_object);
+    push_lst(new_number(number, parse_object->environment), parse_object);
 
     return_corresponding_function(parse_object);
 }
@@ -188,7 +187,7 @@ void a_integer_cc(struct ParseObject *parse_object)
 
     int integer = 0;
     sscanf(parse_object->content + parse_object->corresponding_value, "%d", &integer);
-    push_lst(new_integer(integer), parse_object);
+    push_lst(new_integer(integer, parse_object->environment), parse_object);
 
     return_corresponding_function(parse_object);
 }
@@ -197,12 +196,12 @@ void a_bool_cc(struct ParseObject *parse_object)
 {
     if(parse_object->ch == 't')
     {
-        push_lst(new_bool(1), parse_object);
+        push_lst(new_bool(1, parse_object->environment), parse_object);
         parse_object->next = return_corresponding_function;
     }
     else if(parse_object->ch == 'f')
     {
-        push_lst(new_bool(0), parse_object);
+        push_lst(new_bool(0, parse_object->environment), parse_object);
         parse_object->next = return_corresponding_function;
     }
     else
@@ -244,7 +243,7 @@ void a_comment(struct ParseObject *parse_object)
     parse_object->next = a_comment_cc;
 }
 
-void wrap_with(struct Thing *(*fn)(struct Thing*), struct ParseObject *parse_object)
+void wrap_with(struct Thing *(*fn)(struct Thing*, struct Environment*), struct ParseObject *parse_object)
 {
     struct FunctionWrapperCons *wrapper = new_memory(sizeof(struct FunctionWrapperCons), "wrap_with: FunctionWrapperCons");
     wrapper->car = fn;
@@ -540,17 +539,7 @@ void parse_object_mark(struct Thing *thing)
     struct ParseObject *parse_object = thing->value;
     if(!parse_object->lst->marked)
     {
-        thing_track(thing, parse_object->lst);
         thing_mark(parse_object->lst);
-    }
-}
-
-void parse_object_track(struct Thing *thing)
-{
-    struct ParseObject *parse_object = thing->value;
-    if(!parse_object->lst->tracked)
-    {
-        thing_track(thing, parse_object->lst);
     }
 }
 
@@ -565,7 +554,7 @@ struct Thing *parse_helper(struct ParseObject *parse_object)
 
         if(eat_counter > 1000)
         {
-            pacman_mark_and_eat(parse_object->pacman);
+            pacman_mark_and_eat(parse_object->environment->pacman);
             eat_counter = 0;
         }
         eat_counter++;
@@ -574,7 +563,7 @@ struct Thing *parse_helper(struct ParseObject *parse_object)
     parse_object->ch = '\0';
     parse_object->next(parse_object);
 
-    struct Thing *reversed = lst_reverse(parse_object->lst);
+    struct Thing *reversed = lst_reverse(parse_object->lst, parse_object->environment);
     parse_object->lst = reversed;
 
     if(parse_object->wrapper != NULL)
@@ -586,34 +575,33 @@ struct Thing *parse_helper(struct ParseObject *parse_object)
     return reversed;
 }
 
-struct Thing *parse(const char *content, struct Pacman *pacman)
+struct Thing *parse(const char *content, struct Environment *environment)
 {
-    struct ParseObject parse_object = {content[0], new_nil(), 0, 0, content, return_corresponding_function, strlen(content), 0, NULL, pacman};
-    struct Thing *root = new_thing();
-    struct Thing *old_root = pacman->root;
+    struct ParseObject parse_object = {content[0], new_nil(environment), 0, 0, content, return_corresponding_function, strlen(content), 0, NULL, environment};
+    struct Thing *root = new_thing(environment);
+    struct Thing *old_root = environment->pacman->root;
     root->value = &parse_object;
     root->type = &parse_object_type;
-    pacman_set_root(pacman, new_cons(root, old_root));
+    pacman_set_root(environment->pacman, new_cons(root, old_root, environment));
 
     struct Thing *thing = parse_helper(&parse_object);
 
-    pacman_set_root(pacman, old_root);
+    pacman_set_root(environment->pacman, old_root);
 
     return thing;
 }
 
-const struct Type parse_object_type = {"ParseObject", 345628, parse_object_free, parse_object_mark, parse_object_track};
+const struct Type parse_object_type = {"ParseObject", 345628, parse_object_free, parse_object_mark};
 
-struct Thing *lst_reverse(struct Thing *lst)
+struct Thing *lst_reverse(struct Thing *lst, struct Environment *environment)
 {
-    struct Thing *current = new_nil();
+    struct Thing *current = new_nil(environment);
 
     while(lst->type == &TYPES.cons)
     {
         struct Cons *cons = (struct Cons*)lst->value;
         struct Thing *old = current;
-        current = new_cons(cons->car, old);
-        thing_track(lst, current);
+        current = new_cons(cons->car, old, environment);
         lst = cons->cdr;
     }
 

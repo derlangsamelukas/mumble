@@ -6,6 +6,6 @@
 #include "types.h"
 #include "eval.h"
 
-struct Thing *add_sdl_lib(struct Thing *fn_env);
+struct Thing *add_sdl_lib(struct Thing *fn_env, struct Environment *environment);
 
 #endif

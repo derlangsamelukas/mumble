@@ -15,6 +15,7 @@ struct Cons;
 struct Applicative;
 struct Function;
 struct Array;
+struct Environment;
 
 struct Pacman
 {
@@ -28,7 +29,6 @@ struct Type
     int id;
     void (*destroy)(struct Thing*);
     void (*mark)(struct Thing*);
-    void (*track)(struct Thing*);
 };
 
 struct Thing
@@ -37,7 +37,7 @@ struct Thing
     const struct Type *type;
     int marked;
     int tracked;
-    struct Pacman *pacman;
+    struct Environment *environment;;
 };
 
 struct Cons
@@ -51,6 +51,7 @@ struct Eva
     struct Thing *next;
     struct Thing *args;
     struct Thing *unwind;
+    struct Environment *environment;
 };
 
 struct Function
@@ -77,36 +78,35 @@ struct Types
     struct Type integer, string, symbol, number, bool, cons, nil, native, function, thunk;
 };
 
+struct Environment
+{
+    struct Pacman *pacman;
+};
 
 extern const struct Thing DEFAULT_THING;
 extern const struct Types TYPES;
 
-struct Thing *new_thing();
+struct Thing *new_thing(struct Environment*);
 void thing_mark(struct Thing *thing);
-void thing_track(struct Thing *thing, struct Thing *other);
-void simple_track(struct Thing *thing);
 void simple_free(struct Thing *thing, const char *purpose);
 void free_cons(struct Thing *thing);
 void free_nil(struct Thing *thing);
 void free_function(struct Thing *thing);
 void simple_mark(struct Thing *thing);
-struct Thing *new_integer(int value);
-struct Thing *new_string_no_copy(char *value);
-struct Thing *new_string(const char *value);
-struct Thing *new_symbol_no_copy(char *value);
-struct Thing *new_symbol(const char *value);
-struct Thing *new_number(double value);
-struct Thing *new_bool(int value);
-struct Thing *new_cons(struct Thing *car, struct Thing *cdr);
-struct Thing *new_nil();
-struct Thing *new_native(void *value);
-struct Thing *new_function(void (*f)(struct Thing*, struct Eva*), struct Thing *env);
+struct Thing *new_integer(int value, struct Environment*);
+struct Thing *new_string_no_copy(char *value, struct Environment*);
+struct Thing *new_string(const char *value, struct Environment*);
+struct Thing *new_symbol_no_copy(char *value, struct Environment*);
+struct Thing *new_symbol(const char *value, struct Environment*);
+struct Thing *new_number(double value, struct Environment*);
+struct Thing *new_bool(int value, struct Environment*);
+struct Thing *new_cons(struct Thing *car, struct Thing *cdr, struct Environment*);
+struct Thing *new_nil(struct Environment*);
+struct Thing *new_native(void *value, struct Environment*);
+struct Thing *new_function(void (*f)(struct Thing*, struct Eva*), struct Thing *env, struct Environment*);
 int get_references();
 
-void set_car_unsafe(struct Thing *thing, struct Thing *new_car);
-void set_cdr_unsafe(struct Thing *thing, struct Thing *new_cdr);
-
-struct Pacman *new_pacman(struct Thing *root);
+struct Pacman *new_pacman();
 void pacman_track(struct Pacman *pacman, struct Thing *thing);
 void pacman_set_root(struct Pacman *pacman, struct Thing *new_root);
 void pacman_mark(struct Pacman *pacman);
@@ -125,9 +125,8 @@ int array_size(struct Array *array);
 int array_length(struct Array *array);
 int array_full(struct Array *array);
 
-struct Thing *new_thunk(void (*f)(struct Array*, struct Eva*), struct Array *env);
+struct Thing *new_thunk(void (*f)(struct Array*, struct Eva*), struct Array *env, struct Environment *environment);
 void free_thunk(struct Thing *thing);
 void thunk_mark(struct Thing *thing);
-void thunk_track(struct Thing *thing);
 
 #endif
