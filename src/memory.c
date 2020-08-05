@@ -8,10 +8,7 @@ void *new_memory(size_t size, const char *purpose)
 #ifdef DEBUG
     puts(purpose);
 #endif
-    void *memory = malloc(size);
-    printf("%p::\n", memory);
-
-    return memory;
+    return malloc(size);
 }
 
 void free_memory(void *pointer, const char *purpose)

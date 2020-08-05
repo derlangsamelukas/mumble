@@ -633,6 +633,12 @@ void eval_funcall(struct Cons *funcall, struct Thing *env, struct Eva *eva)
     update_args(new_cons(funcall->car, new_nil(eva->environment), eva->environment), eva);
 }
 
+void eval_next_try(struct Thing *env, struct Eva *eva)
+{
+    printf("next try to evaluate\n");
+    update_args(new_nil(eva->environment), eva);
+}
+
 void protect(struct Thing *env, struct Eva *eva)
 {
     struct Thing *print_me = eva->args->type == &TYPES.cons ? ((struct Cons*)(eva->args->value))->car : eva->args;
@@ -673,21 +679,10 @@ void eval_loop(struct Thing *thunk, struct Thing *args, struct Environment *envi
     pacman_set_root(environment->pacman, new_cons(eva_thing, old_root, environment));
     int eat_counter = 0;
 
-    while(eva.next->type != &TYPES.nil)
+    while(eva.next->type == &TYPES.function)
     {
-        struct Cons *cons = (struct Cons*)eva.next->value;
-
-        if(cons->car->type != &TYPES.function)
-        {
-            printf("%p\n", eva.next);
-            printf("eval_loop: car is no function\n");
-            puts(string_of_thing(cons->car));
-            exit(1);
-        }
-        struct Function *fn = (struct Function*)cons->car->value;
-
-        struct Thing *old = eva.next;
-        eva.next = cons->cdr;
+        struct Function *fn = (struct Function*)eva.next->value;
+        eva.next = new_nil(environment);
 
         fn->f(fn->env, &eva);
 
@@ -697,6 +692,11 @@ void eval_loop(struct Thing *thunk, struct Thing *args, struct Environment *envi
             eat_counter = 0;
         }
         eat_counter++;
+    }
+    if(eva.next->type != &TYPES.nil)
+    {
+        printf("unexpected type for main loop, expected (or function nil) got '%s'\n", eva.next->type->name);
+        exit(1);
     }
 
     pacman_set_root(environment->pacman, old_root);

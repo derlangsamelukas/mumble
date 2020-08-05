@@ -17,4 +17,6 @@ void eval_loop(struct Thing *thunk, struct Thing *args, struct Environment *envi
 void macro_expand(struct Thing *env, struct Eva *eva);
 void execute_body(struct Thing *env, struct Eva *eva);
 
+void eval_next_try(struct Thing *env, struct Eva *eva);
+
 #endif

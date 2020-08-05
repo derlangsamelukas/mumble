@@ -58,27 +58,24 @@ int main(int argc, const char **argv)
     struct Environment environment = {new_pacman()};
     pacman_set_root(environment.pacman, new_nil(&environment));
     // environment.pacman->root->environment = &environment;
-    if(argc < 3)
+    if(argc < 2)
     {
-        puts("missing argument, usage:\n./a.out <lisp dir> <project dir>");
+        puts("missing argument, usage:\n./a.out <lisp file>");
         return 1;
     }
-    struct Thing *lisp_root = add_slash_if_missing(argv[1], &environment);
-    struct Thing *project_root = add_slash_if_missing(argv[2], &environment);
     
-    struct Thing *parsed = parse_init_file(lisp_root->value, &environment);
+    
+    struct Thing *parsed = parse_file(argv[1], &environment);
     if(parsed == NULL)
     {
-        puts("could not read filename (init.lisp)");
+        printf("could not parse file: '%s'", argv[1]);
         return 1;
     }
+    
+    struct Thing *env = build_std_env(&environment);
+    struct Thing *thunk = new_function(eval_next_try, env, &environment);
 
-    struct Thing *nil = new_nil(&environment);
-    struct Thing *env = build_std_env();
-    struct Thing *thunk = new_function(eval, env, &environment);
-    struct Thing *args = new_cons(new_cons(new_cons(new_cons(new_symbol("lambda", &environment), new_cons(new_nil(&environment), parsed, &environment), &environment), nil, &environment), new_cons(lisp_root, new_cons(project_root, new_nil(&environment), &environment), &environment), &environment), new_nil(&environment), &environment);
-
-    eval_loop(thunk, args, &environment);
+    eval_loop(thunk, parsed, &environment);
     
     pacman_destroy(environment.pacman);
     printf("active references: %d\n", get_active_references());

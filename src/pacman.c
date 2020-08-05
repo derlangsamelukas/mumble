@@ -66,8 +66,7 @@ void pacman_eat(struct Pacman *pacman)
         struct Thing *current = array_get(pacman->all, i);
         if(!current->marked)
         {
-            printf("%p: %s\n", current, current->type->name);
-            current->tracked = -1;
+            current->tracked = 0;
             current->type->destroy(current);
             array_remove(pacman->all, i);
             freed_things++;
